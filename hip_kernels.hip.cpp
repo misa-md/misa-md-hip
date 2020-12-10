@@ -6,6 +6,7 @@
 #include "hip_kernels.h"
 #include "hip_macros.h"
 #include "hip_pot_device.h"
+#include "md_hip_config.h"
 
 // global domain
 __device__ __constant__ _hipDeviceDomain d_domain;
@@ -56,20 +57,20 @@ __global__ void calRho(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, do
   int id0= d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
                           *d_constValue_int[0]+x+d_constValue_int[6]].id;
   int i = (z * d_constValue_int[4] + y) * d_constValue_int[3] + x;//一维线程id
-  //printf("sss");
+  //debug_printf("sss");
   if(i<10&&i==id0-1){
-      printf("id0=%d\n",id0);
-      printf("pos=%d\n",((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
+      debug_printf("id0=%d\n",id0);
+      debug_printf("pos=%d\n",((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
                         *d_constValue_int[0]+x+d_constValue_int[6]);
   }*/
   //线程对应的需要处理的原子（x+ghost_size_x,y+ghost_size_y,z+ghost_size_z)
   /*
   if(i==10000){
-      printf("x0=%f\n",x0);
-      printf("y0=%f\n",y0);
-      printf("z0=%f\n",z0);
-      printf("type0=%d\n",type0);
-      printf("rho0= %f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
+      debug_printf("x0=%f\n",x0);
+      debug_printf("y0=%f\n",y0);
+      debug_printf("z0=%f\n",z0);
+      debug_printf("type0=%d\n",type0);
+      debug_printf("rho0= %f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
                                   *d_constValue_int[0]+x+d_constValue_int[6]].rho);
   }else{
       ;
@@ -81,7 +82,7 @@ __global__ void calRho(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, do
     for (size_t k = 0; k < j; k++) {
       /*
       if(i==10000&&k==0){//第六个时间步为啥输出了8个0而不是4个
-          printf("k=%d\n",k);
+          debug_printf("k=%d\n",k);
       }*/
       if ((x + d_domain.box_index_start_x) % 2 == 0) { // x分奇偶的邻居索引
         offset = offsets.nei_even[k];
@@ -101,25 +102,27 @@ __global__ void calRho(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, do
         dist = delx * delx + dely * dely + delz * delz;
         if (dist < cutoff_radius * cutoff_radius) {
           rhoTmp = hip_pot::hipChargeDensity(typetemp, dist);
-          printf("Here %f\n", rhoTmp);
+          // debug_printf("Here %f\n", rhoTmp);
           // return;
           cur_atom.rho += rhoTmp;
           /*
           if(i==10000){//一次性不能做太多输出,否则一个都不输出
-              //printf("xtemp=%f\n",xtemp);
-              //printf("ytemp=%f\n",ytemp);
-              //printf("ztemp=%f\n",ztemp);
-              //printf("typetemp=%d\n",typetemp);
-              //printf("dist=%f\n",dist);
-              //printf("r=%f\n",r);
-              printf("m=%d\n",m);
-              printf("p=%f\n",p);
-              //printf("d_spline[mtemp*7]=%f\n",d_spline[mtemp*7]);
-              //printf("d_spline[mtemp*7+1]=%f\n",d_spline[mtemp*7+1]);
-              //printf("d_spline[mtemp*7+2]=%f\n",d_spline[mtemp*7+2]);printf("p=%f\n",p);
-              //printf("原子位置= %d\n",((z+d_constValue_int[8]) * d_constValue_int[1] +
-          y+d_constValue_int[7])*d_constValue_int[0]+x+d_constValue_int[6]); printf("rhoTmp= %f\n",rhoTmp); printf("rho=
-          %f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] +
+              //debug_printf("xtemp=%f\n",xtemp);
+              //debug_printf("ytemp=%f\n",ytemp);
+              //debug_printf("ztemp=%f\n",ztemp);
+              //debug_printf("typetemp=%d\n",typetemp);
+              //debug_printf("dist=%f\n",dist);
+              //debug_printf("r=%f\n",r);
+              debug_printf("m=%d\n",m);
+              debug_printf("p=%f\n",p);
+              //debug_printf("d_spline[mtemp*7]=%f\n",d_spline[mtemp*7]);
+              //debug_printf("d_spline[mtemp*7+1]=%f\n",d_spline[mtemp*7+1]);
+              //debug_printf("d_spline[mtemp*7+2]=%f\n",d_spline[mtemp*7+2]);
+              // debug_printf("p=%f\n",p);
+              //debug_printf("原子位置= %d\n",((z+d_constValue_int[8]) * d_constValue_int[1] +
+          y+d_constValue_int[7])*d_constValue_int[0]+x+d_constValue_int[6]);
+          debug_printf("rhoTmp= %f\n",rhoTmp);
+          debug_printf("rho=%f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] +
           y+d_constValue_int[7])*d_constValue_int[0]+x+d_constValue_int[6]].rho);
           }*/
           //更新邻居原子电子云密度//会不会产生写冲突呢？
@@ -198,7 +201,7 @@ __global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, 
 
   /*
   if(i==10000){
-      printf("f[0]= %f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
+      debug_printf("f[0]= %f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
                                   *d_constValue_int[0]+x+d_constValue_int[6]].f[0]);
   }*/
   //线程对应的需要处理的原子（x+ghost_size_x,y+ghost_size_y,z+ghost_size_z)

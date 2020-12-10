@@ -7,6 +7,7 @@
 #include "hip_macros.h" // from hip_pot lib
 #include "hip_pot.h"
 #include "kernel_wrapper.h"
+#include "md_hip_config.h"
 
 //定义线程块各维线程数
 #define THREADS_PER_BLOCK_X 16
@@ -72,13 +73,13 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
 #ifdef MD_DEV_MODE
   _hipDeviceDomain sym_domain;
   HIP_CHECK(hipMemcpyFromSymbol(&sym_domain, HIP_SYMBOL(d_domain), sizeof(_hipDeviceDomain)));
-  printf("domain on device side: ghost (%d, %d, %d), box (%d, %d, %d), ext (%d, %d, %d), start (%ld, %ld, %ld).\n",
+  debug_printf("domain on device side: ghost (%d, %d, %d), box (%d, %d, %d), ext (%d, %d, %d), start (%ld, %ld, %ld).\n",
          sym_domain.ghost_size_x, sym_domain.ghost_size_y, sym_domain.ghost_size_z, sym_domain.box_size_x,
          sym_domain.box_size_y, sym_domain.box_size_z, sym_domain.ext_size_x, sym_domain.ext_size_y,
          sym_domain.ext_size_z, sym_domain.box_index_start_x, sym_domain.box_index_start_z,
          sym_domain.box_index_start_z);
 #endif
-  printf("copy domain metadata done.\n");
+  debug_printf("copy domain metadata done.\n");
   /*
   cout<<nghostx<<endl;//62
   cout<<nghosty<<endl;//31
@@ -128,7 +129,7 @@ void hip_nei_offset_init(const NeighbourIndex<AtomElement> *nei_offset) {
   d_nei_offset.nei_even_size = nei_even_size;
   d_nei_offset.nei_odd = d_nei_odd;
   d_nei_offset.nei_even = d_nei_even;
-  printf("copy neighbor offset done.\n");
+  debug_printf("copy neighbor offset done.\n");
 }
 
 void hip_pot_init(eam *_pot) {
@@ -146,7 +147,7 @@ void allocDeviceAtomsIfNull() {
 }
 
 void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  printf("calculating rho.\n");
+  debug_printf("calculating rho.\n");
   // CPU端电子云密度等是清零了的
   //邻居晶格点索引处理
   allocDeviceAtomsIfNull();
@@ -159,16 +160,16 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
   dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
                    (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
                    (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  printf("launching kernel: <<<%d, %d ,%d>>>\n", (h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X,
+  debug_printf("launching kernel: <<<%d, %d ,%d>>>\n", (h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X,
          (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
          (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
   // hipLaunchKernelGGL(calRho, dim3(blockNumber), dim3(threadsPerBlock), 0, 0, d_atoms, d_constValue_int,
   // d_constValue_double,d_nei_odd,d_nei_even);
   __kernel_calRho_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset, cutoff_radius);
   if (hipSuccess != hipGetLastError()) {
-    printf("error\n");
+    debug_printf("error\n");
   }
-  printf("kernel finished.\n");
+  debug_printf("kernel finished.\n");
   //内存拷贝device->host
   HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost)); //一个AtomElement104个字节
                                                                                            //输出测试
@@ -177,21 +178,21 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
 }
 
 void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  printf("calculating df.\n");
+  debug_printf("calculating df.\n");
   //间隙原子会导致原子信息发生变化，因此需要再次内存拷贝
   allocDeviceAtomsIfNull();
   const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
   HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  printf("copy atoms.\n");
+  debug_printf("copy atoms.\n");
   dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
   dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
                    (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
                    (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
   assert(d_atoms != nullptr);
   __kernel_calDf_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset);
-  printf("launching kernels.\n");
+  debug_printf("launching kernels.\n");
   if (hipSuccess != hipGetLastError()) {
-    printf("launching kernel error.\n");
+    debug_printf("launching kernel error.\n");
   }
   HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost));
   // cout<<sizeof(_cuAtomElement)<<endl<<"hhhhhhhhhhhhhhhhhhhh";
@@ -200,7 +201,7 @@ void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
 }
 
 void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  printf("calculating force.\n");
+  debug_printf("calculating force.\n");
   allocDeviceAtomsIfNull();
   const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
   // HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, assert(hipSuccess==hipMemcpyHostToDevice);
@@ -211,7 +212,7 @@ void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
                    (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
   __kernel_calForce_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset, cutoff_radius);
   if (hipSuccess != hipGetLastError()) {
-    printf("launching kernel error.\n");
+    debug_printf("launching kernel error.\n");
   }
   // assert(1<2);
   HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost));
