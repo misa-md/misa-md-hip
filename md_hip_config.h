@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 #ifdef MD_DEV_MODE
-int debug_printf(const char *format, ...) {
+inline int debug_printf(const char *format, ...) {
     int done;
     va_list args;
     va_start(args, format);
@@ -22,8 +22,10 @@ int debug_printf(const char *format, ...) {
     va_end(args);
     return done;
 }
-#else
-int debug_printf(const char *cmd, ...) {
+#endif
+
+#ifndef MD_DEV_MODE
+inline int debug_printf(const char *cmd, ...) {
     // leave it empty
     return 0;
 }
@@ -34,4 +36,4 @@ int debug_printf(const char *cmd, ...) {
 #endif
 
 
-#endif HIP_CONFIG_H
+#endif // HIP_CONFIG_H
