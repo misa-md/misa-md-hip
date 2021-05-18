@@ -28,7 +28,9 @@ endif ()
 
 set(MD_HIP_ARCH_FILES
         hip_arch_acc_imp.cpp
-#        hip_kernels.h
+        src/double_buffer.cpp
+        src/rho_double_buffer_imp.cpp
+        # hip_kernels.h
         hip_kernels.hip.cpp
 #        kernel_wrapper.h
         kernel_wrapper.hip.cpp
