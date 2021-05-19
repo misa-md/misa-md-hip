@@ -6,6 +6,8 @@
 #include "hip_kernels.h"
 #include "hip_macros.h" // from hip_pot lib
 #include "hip_pot.h"
+
+#include "global_ops.h"
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
 

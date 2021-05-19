@@ -8,8 +8,6 @@
 #include "hip_pot_device.h"
 #include "md_hip_config.h"
 
-// global domain
-__device__ __constant__ _hipDeviceDomain d_domain;
 
 /**convert a 3d index (x,y,z) to Linear index in atoms array.
  *where x, y, z are the atom coordinate in simulation box (not include ghost region).
