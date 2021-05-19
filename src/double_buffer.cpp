@@ -2,18 +2,20 @@
 // Created by genshen on 2021/5/16.
 //
 
-#include "double_buffer.h"
 #include <iostream>
+#include <stdexcept>
+
+#include "double_buffer.h"
 
 DoubleBuffer::DoubleBuffer(hipStream_t &_stream1, hipStream_t &_stream2, const unsigned int blocks,
                            const unsigned int data_len)
     : stream1(_stream1), stream2(_stream2), blocks(blocks), data_len(data_len) {
   if (blocks <= 0) {
-    std::cerr << "invalid block number." << std::endl; // todo: abort program
+    throw std::invalid_argument("invalid block number.");
     return;
   }
   if (data_len < blocks) {
-    std::cerr << "invalid block number and data length." << std::endl;
+    throw std::invalid_argument("invalid block number and data length.");
     return;
   }
 }
@@ -42,17 +44,23 @@ void DoubleBuffer::getCurrentDataRange(const unsigned int block_i, unsigned int 
 }
 
 void DoubleBuffer::fillBufferWrapper(const int block_id) {
+  if (block_id < 0 || block_id >= blocks) {
+    return;
+  }
   const bool is_left_buffer = (block_id % 2 == 0);
   unsigned int data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
-  fillBuffer(is_left_buffer ? stream1 : stream2, is_left_buffer, block_id);
+  fillBuffer(is_left_buffer ? stream1 : stream2, is_left_buffer, data_start_index, data_end_index, block_id);
 }
 
 void DoubleBuffer::fetchBufferWrapper(const int block_id) {
+  if (block_id < 0 || block_id >= blocks) {
+    return;
+  }
   const bool is_left_buffer = (block_id % 2 == 0);
   unsigned int data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
-  fetchBuffer(is_left_buffer ? stream1 : stream2, is_left_buffer, block_id);
+  fetchBuffer(is_left_buffer ? stream1 : stream2, is_left_buffer, data_start_index, data_end_index, block_id);
 }
 
 void DoubleBuffer::waitCalc(const int block_id) {

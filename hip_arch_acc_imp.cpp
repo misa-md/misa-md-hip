@@ -10,6 +10,7 @@
 #include "global_ops.h"
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
+#include "src/rho_double_buffer_imp.h"
 
 //定义线程块各维线程数
 #define THREADS_PER_BLOCK_X 16
@@ -18,6 +19,7 @@
 
 //#define CUDA_ASSERT(x) (assert((x)==hipSuccess))
 
+constexpr unsigned int n = 5;
 _cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
@@ -149,34 +151,17 @@ void allocDeviceAtomsIfNull() {
 }
 
 void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  debug_printf("calculating rho.\n");
-  // CPU端电子云密度等是清零了的
-  //邻居晶格点索引处理
-  allocDeviceAtomsIfNull();
-  //内存拷贝host->device
-  const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-  HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  //启动核函数计算
-  //一个线程块最多1024个线程,16*8*8,如果sub_size_x等于二倍sub_size_y,即为一个正方体，那么线程任务分配大致平均
-  dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
-  dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
-                   (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-                   (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  debug_printf("launching kernel: <<<%d, %d ,%d>>>\n", (h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X,
-         (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-         (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  // hipLaunchKernelGGL(calRho, dim3(blockNumber), dim3(threadsPerBlock), 0, 0, d_atoms, d_constValue_int,
-  // d_constValue_double,d_nei_odd,d_nei_even);
-  __kernel_calRho_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset, cutoff_radius);
-  if (hipSuccess != hipGetLastError()) {
-    debug_printf("error\n");
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
   }
-  debug_printf("kernel finished.\n");
-  //内存拷贝device->host
-  HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost)); //一个AtomElement104个字节
-                                                                                           //输出测试
-  // cout<<"helloooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"<<endl;
-  //插值后的spline，发现有很多个0,少数10^-6
+  allocDeviceAtomsIfNull();
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms, h_domain,
+                                       d_nei_offset, cutoff_radius);
+  rhp_double_buffer.schedule();
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
 }
 
 void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {

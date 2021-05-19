@@ -18,17 +18,30 @@ public:
 
   /**
    * Send data to buffer
+   * @param stream hip stream used for current data block.
    * @param left true for "left buffer or buffer 1 will be used".
+   * @param data_start_index starting data index of current block that fetch from the buffer.
+   * @param data_end_index ending data index for current block that send to the buffer.
+   *  (not include this ending index)
    * @param block_id block id. It can be less than 0, which is invalid.
    */
-  virtual void fillBuffer(hipStream_t &stream, const bool left, const int block_id) = 0;
+  virtual void fillBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
+                          const unsigned int data_end_index, const int block_id) = 0;
+
   void fillBufferWrapper(const int block_id);
 
   /**
-   * fetch data back from buffer
+   *  fetch data back from buffer
+   * @param stream hip stream used for current data block.
    * @param left true for "left buffer or buffer 1 will be used".
+   * @param data_start_index starting data index of current block that fetch from the buffer.
+   * @param data_end_index ending data index for current block that fetch from the buffer.
+   *  (not include this ending index)
+   * @param block_id current block id. It can be less than 0, which is invalid.
    */
-  virtual void fetchBuffer(hipStream_t &stream, const bool left, const int block_id) = 0;
+  virtual void fetchBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
+                           const unsigned int data_end_index, const int block_id) = 0;
+
   void fetchBufferWrapper(const int block_id);
 
   /**
