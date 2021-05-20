@@ -10,6 +10,7 @@
 #include "atom/atom_element.h"
 #include "double_buffer.h"
 #include "hip_kernels.h"
+#include "global_ops.h"
 
 /**
  * double buffer implementation for calculating electron density rho.
@@ -22,14 +23,15 @@ public:
    * @param blocks total data blocks
    * @param data_len total data length in all data blocks
    * @param _ptr_atoms atoms pointer on host side
-   * @param _ptr_device_atoms atoms pointer on device side.
+   * @param _ptr_device_buf1, _ptr_device_buf2 two atom buffers memory on device side.
    * @param h_domain domain information
    * @param d_nei_offset neighbor offset data
    * @param cutoff_radius cutoff
    */
   RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len,
-                     AtomElement *_ptr_atoms, _cuAtomElement *_ptr_device_atoms, _hipDeviceDomain h_domain,
-                     const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
+                     AtomElement *_ptr_atoms, _cuAtomElement *_ptr_device_buf1, _cuAtomElement *_ptr_device_buf2,
+                     tp_device_rho *_d_rhos, _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset,
+                     const double cutoff_radius);
 
   /**
    * implementation of copying data into device buffer
@@ -62,8 +64,9 @@ public:
 
 private:
   // lattice atoms array in current MPI process (including ghost regions)
-  AtomElement *ptr_atoms;
-  _cuAtomElement *ptr_device_atoms;
+  AtomElement *ptr_atoms = nullptr;
+  _cuAtomElement *_ptr_device_buf1 = nullptr, *_ptr_device_buf2 = nullptr;
+  tp_device_rho *d_rhos = nullptr;
   const _hipDeviceDomain h_domain;
   const _hipDeviceNeiOffsets d_nei_offset; // fixme: remove it
   const double cutoff_radius;

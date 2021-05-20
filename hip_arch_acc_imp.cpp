@@ -21,6 +21,7 @@
 
 constexpr unsigned int n = 5;
 _cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
+_cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;
@@ -147,6 +148,24 @@ void allocDeviceAtomsIfNull() {
   if (d_atoms == nullptr) {
     const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
     HIP_CHECK(hipMalloc((void **)&d_atoms, sizeof(AtomElement) * size)); // fixme: GPU存得下么
+
+  // allocate 2 buffers
+  if (d_atoms_buffer1 == nullptr || d_atoms_buffer1 == nullptr) {
+    const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
+    const _type_atom_count max_block_atom_size =
+        ((h_domain.box_size_z - 1) / n + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
+    if (d_atoms_buffer1 == nullptr) {
+      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer1, sizeof(AtomElement) * max_block_atom_size * n))
+    }
+    if (d_atoms_buffer2 == nullptr) {
+      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer2, sizeof(AtomElement) * max_block_atom_size * n))
+    }
+  }
+
+  if (d_rhos == nullptr) {
+    const _type_atom_count size_ = h_domain.box_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+    HIP_CHECK(hipMalloc(&d_rhos, size_ * sizeof(double)))
+    HIP_CHECK(hipMemset(d_rhos, 0, size_ * sizeof(double)))
   }
 }
 
@@ -156,8 +175,8 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms, h_domain,
-                                       d_nei_offset, cutoff_radius);
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+                                       d_atoms_buffer2, d_rhos, h_domain, d_nei_offset, cutoff_radius);
   rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
