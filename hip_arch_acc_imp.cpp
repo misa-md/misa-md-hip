@@ -22,6 +22,7 @@
 constexpr unsigned int n = 5;
 _cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
 _cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
+tp_device_rho *d_rhos = nullptr;
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;

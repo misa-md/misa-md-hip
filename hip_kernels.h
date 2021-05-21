@@ -8,8 +8,18 @@
 #include "src/global_ops.h"
 #include <hip/hip_runtime.h>
 
+/**
+ * calculate rho on device side
+ * @param d_atoms subset of atoms (including ghost)
+ * @param _d_rhos rho array for storing result
+ * @param offsets offset array for neighbor searching
+ * @param start_id start index
+ * @param end_id end index
+ * @param cutoff_radius cutoff
+ */
 __global__ void calc_rho(_cuAtomElement *d_atoms, tp_device_rho *_d_rhos, _hipDeviceNeiOffsets offsets,
-                       double cutoff_radius);
+                         const _type_atom_index_kernel start_id, const _type_atom_index_kernel end_id,
+                         double cutoff_radius);
 
 __global__ void calDf(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets);
 

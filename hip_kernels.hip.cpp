@@ -29,122 +29,65 @@ inline __device__ bool _deviceIsAtomInBox(_type_atom_index x, _type_atom_index y
   return x < d_domain.box_size_x && y < d_domain.box_size_y && z < d_domain.box_size_z;
 }
 
-//核函数,发现如果利用牛顿第三定律确实会出现写写冲突，结果大幅偏差。
-__global__ void calRho(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius) {
-  int typetemp;
-  double xtemp, ytemp, ztemp; //邻居原子坐标暂存
-  double delx, dely, delz;
-  int offset; //偏移
-  double dist, r, p, rhoTmp;
-  //三维线程id映射
-  size_t x = blockIdx.x * blockDim.x + threadIdx.x;
-  size_t y = blockIdx.y * blockDim.y + threadIdx.y;
-  size_t z = blockIdx.z * blockDim.z + threadIdx.z;
-  // todo: can you use newton's third low?
-  // 必须要对线程的每一维进行限制而不是乘积
-  if (!_deviceIsAtomInBox(x, y, z)) { //判断线程是否越界
-    return;
-  }
+__global__ void calc_rho(_cuAtomElement *d_atoms, tp_device_rho *_d_rhos, _hipDeviceNeiOffsets offsets,
+                         const _type_atom_index_kernel start_id, const _type_atom_index_kernel end_id,
+                         double cutoff_radius) {
+  const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+  // atoms number in this block.
+  const _type_atom_index_kernel atoms_num = (end_id - start_id) * d_domain.box_size_x * d_domain.box_size_y;
+  const unsigned int threads_size = hipGridDim_x * hipBlockDim_x;
 
-  const _type_atom_index index = _deviceAtom3DIndexToLinear(x, y, z);
-  _cuAtomElement &cur_atom = d_atoms[index];
-  double x0 = cur_atom.x[0];
-  double y0 = cur_atom.x[1];
-  double z0 = cur_atom.x[2];
-  int type0 = cur_atom.type;
-  /*
-  int id0= d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
-                          *d_constValue_int[0]+x+d_constValue_int[6]].id;
-  int i = (z * d_constValue_int[4] + y) * d_constValue_int[3] + x;//一维线程id
-  //debug_printf("sss");
-  if(i<10&&i==id0-1){
-      debug_printf("id0=%d\n",id0);
-      debug_printf("pos=%d\n",((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
-                        *d_constValue_int[0]+x+d_constValue_int[6]);
-  }*/
-  //线程对应的需要处理的原子（x+ghost_size_x,y+ghost_size_y,z+ghost_size_z)
-  /*
-  if(i==10000){
-      debug_printf("x0=%f\n",x0);
-      debug_printf("y0=%f\n",y0);
-      debug_printf("z0=%f\n",z0);
-      debug_printf("type0=%d\n",type0);
-      debug_printf("rho0= %f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
-                                  *d_constValue_int[0]+x+d_constValue_int[6]].rho);
-  }else{
-      ;
-  }*/
-  if (type0 < 0) { //间隙原子，什么都不做 todo: put it here?
-  } else {
-    // x分奇偶的邻居索引,此处应为全局x
+  int type0;
+  double x0, y0, z0, delx, dely, delz;
+  double dist, rhoTmp;
+  int typetemp;               // type of neighbor atoms
+  double xtemp, ytemp, ztemp; // position of neighbor atoms
+  int offset;
+
+  // loop all atoms in current data-block
+  for (_type_atom_index_kernel atom_id = 0; atom_id < atoms_num; atom_id += threads_size) {
+    const _type_atom_index_kernel z = atom_id / (d_domain.box_size_x * d_domain.box_size_y);
+    const _type_atom_index_kernel y = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) / d_domain.box_size_x;
+    const _type_atom_index_kernel x = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) % d_domain.box_size_x;
+    // array index from starting of current data block
+    const _type_atom_index_kernel index = _deviceAtom3DIndexToLinear(x, y, z);
+    _cuAtomElement &cur_atom = d_atoms[index]; // get the atom
+
+    x0 = cur_atom.x[0];
+    y0 = cur_atom.x[1];
+    z0 = cur_atom.x[2];
+    type0 = cur_atom.type;
+    if (type0 < 0) { // do nothing if it is invalid
+      continue;
+    }
+
+    // loop each neighbor atoms, and calculate rho contribution
     const size_t j = (x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even_size : offsets.nei_odd_size;
     for (size_t k = 0; k < j; k++) {
-      /*
-      if(i==10000&&k==0){//第六个时间步为啥输出了8个0而不是4个
-          debug_printf("k=%d\n",k);
-      }*/
-      if ((x + d_domain.box_index_start_x) % 2 == 0) { // x分奇偶的邻居索引
+      // neighbor can be index with odd x or even x
+      if ((x + d_domain.box_index_start_x) % 2 == 0) {
         offset = offsets.nei_even[k];
       } else {
         offset = offsets.nei_odd[k];
       }
-      _cuAtomElement &nei_atom = d_atoms[index + offset];
-      xtemp = nei_atom.x[0]; //在x0的基础上加offset
+      _cuAtomElement &nei_atom = d_atoms[index + offset]; // get neighbor atom
+      xtemp = nei_atom.x[0];
       ytemp = nei_atom.x[1];
       ztemp = nei_atom.x[2];
       typetemp = nei_atom.type;
       if (typetemp < 0) {
-      } else { // type和n作为访问插值的偏移索引
+        continue;
+      } else {
         delx = x0 - xtemp;
         dely = y0 - ytemp;
         delz = z0 - ztemp;
         dist = delx * delx + dely * dely + delz * delz;
+        // calculate rho, and update rho of self atom and neighbor atom.
         if (dist < cutoff_radius * cutoff_radius) {
           rhoTmp = hip_pot::hipChargeDensity(typetemp, dist);
-          // debug_printf("Here %f\n", rhoTmp);
-          // return;
-          cur_atom.rho += rhoTmp;
-          /*
-          if(i==10000){//一次性不能做太多输出,否则一个都不输出
-              //debug_printf("xtemp=%f\n",xtemp);
-              //debug_printf("ytemp=%f\n",ytemp);
-              //debug_printf("ztemp=%f\n",ztemp);
-              //debug_printf("typetemp=%d\n",typetemp);
-              //debug_printf("dist=%f\n",dist);
-              //debug_printf("r=%f\n",r);
-              debug_printf("m=%d\n",m);
-              debug_printf("p=%f\n",p);
-              //debug_printf("d_spline[mtemp*7]=%f\n",d_spline[mtemp*7]);
-              //debug_printf("d_spline[mtemp*7+1]=%f\n",d_spline[mtemp*7+1]);
-              //debug_printf("d_spline[mtemp*7+2]=%f\n",d_spline[mtemp*7+2]);
-              // debug_printf("p=%f\n",p);
-              //debug_printf("原子位置= %d\n",((z+d_constValue_int[8]) * d_constValue_int[1] +
-          y+d_constValue_int[7])*d_constValue_int[0]+x+d_constValue_int[6]);
-          debug_printf("rhoTmp= %f\n",rhoTmp);
-          debug_printf("rho=%f\n",d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] +
-          y+d_constValue_int[7])*d_constValue_int[0]+x+d_constValue_int[6]].rho);
-          }*/
-          //更新邻居原子电子云密度//会不会产生写冲突呢？
-          /*
-          r = sqrt(dist);
-          //p=r*invDx+1.0;
-          p = r * d_constValue_double[1 + type0] + 1.0;
-          m = (int) p;
-          //m=max(1,min(m,(rho_n-1)));
-          m = max(1, min(m, (d_constValue_int[9 + type0] - 1)));
-          p -= m;
-          p = min(p, 1.0);
-          if (type0 == 0) {
-              mtemp = m;
-          } else if (type0 == 1) {
-              mtemp = m + d_constValue_int[9];
-          } else {
-              mtemp = m + d_constValue_int[9] + d_constValue_int[10];
-          }
-          rhoTmp = ((d_spline[mtemp*7+3] * p + d_spline[mtemp*7+4]) * p + d_spline[mtemp*7+5]) * p +
-                   d_spline[mtemp*7+6];
-          d_atoms[((z+d_constValue_int[8]) * d_constValue_int[1] + y+d_constValue_int[7])
-                  *d_constValue_int[0]+x+d_constValue_int[6]+offset].rho+=rhoTmp;*/
+          atomicAdd_(&cur_atom.rho, rhoTmp);
+          rhoTmp = hip_pot::hipChargeDensity(type0, dist);
+          atomicAdd_(&nei_atom.rho, rhoTmp);
         }
       }
     }

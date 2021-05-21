@@ -11,6 +11,7 @@
 
 
 typedef double tp_device_rho;
+typedef _type_atom_index _type_atom_index_kernel;
 
 typedef struct {
   long id;                 // atom id.

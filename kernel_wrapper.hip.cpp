@@ -3,7 +3,8 @@
 
 void __kernel_calRho_wrapper(dim3 grid_dims, dim3 blocks_dims, _cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets,
                              double cutoff_radius) {
-  hipLaunchKernelGGL(calRho, dim3(grid_dims), dim3(blocks_dims), 0, 0, d_atoms, offsets, cutoff_radius);
+  hipLaunchKernelGGL(calc_rho, dim3(grid_dims), dim3(blocks_dims), 0, 0, d_atoms, nullptr, offsets, 0, 0,
+                     cutoff_radius);
 }
 
 void __kernel_calDf_wrapper(dim3 grid_dims, dim3 blocks_dims, _cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets) {
