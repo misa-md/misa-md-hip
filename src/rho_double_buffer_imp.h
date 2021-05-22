@@ -2,20 +2,21 @@
 // Created by genshen on 2021/5/18.
 //
 
-#ifndef MISA_MD_RHO_DOUBLE_BUFFER_IMP_H
-#define MISA_MD_RHO_DOUBLE_BUFFER_IMP_H
+#ifndef MISA_MD_HIP_RHO_DOUBLE_BUFFER_IMP_H
+#define MISA_MD_HIP_RHO_DOUBLE_BUFFER_IMP_H
 
 #include <hip/hip_runtime.h>
 
 #include "atom/atom_element.h"
 #include "double_buffer.h"
-#include "hip_kernels.h"
+#include "double_buffer_base_imp.hpp"
 #include "global_ops.h"
+#include "hip_kernels.h"
 
 /**
  * double buffer implementation for calculating electron density rho.
  */
-class RhoDoubleBufferImp : public DoubleBuffer {
+class RhoDoubleBufferImp : public DoubleBufferBaseImp<_cuAtomElement, AtomElement, AtomElement> {
 public:
   /**
    * @param stream1 stream for buffer 1, which is used for syncing buffer 1.
@@ -34,28 +35,6 @@ public:
                      const double cutoff_radius);
 
   /**
-   * implementation of copying data into device buffer
-   * @param stream HIP stream to be used for current data block.
-   * @param left whether current buffer is left buffer.
-   * @param data_start_index, data_end_index data starting and ending index(not include ending index)
-   *   for current data block.
-   * @param block_id current data block id.
-   */
-  void fillBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
-                  const unsigned int data_end_index, const int block_id) override;
-
-  /**
-   * implementation of fetching data from device buffer
-   * @param stream HIP stream to be used for current data block.
-   * @param left whether current buffer is left buffer.
-   * @param data_start_index, data_end_index data starting and ending index(not include ending index)
-   *   for current data block.
-   * @param block_id current data block id.
-   */
-  void fetchBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
-                   const unsigned int data_end_index, const int block_id) override;
-
-  /**
    * implementation of performing calculation for the specific data block.
    * @param stream HIP stream to be used for current data block.
    * @param block_id current data block id.
@@ -65,7 +44,6 @@ public:
 private:
   // lattice atoms array in current MPI process (including ghost regions)
   AtomElement *ptr_atoms = nullptr;
-  _cuAtomElement *_ptr_device_buf1 = nullptr, *_ptr_device_buf2 = nullptr;
   tp_device_rho *d_rhos = nullptr;
   const _hipDeviceDomain h_domain;
   const _hipDeviceNeiOffsets d_nei_offset; // fixme: remove it
@@ -75,4 +53,4 @@ private:
   dim3 kernel_config_grid_dim;
 };
 
-#endif // MISA_MD_RHO_DOUBLE_BUFFER_IMP_H
+#endif // MISA_MD_HIP_RHO_DOUBLE_BUFFER_IMP_H
