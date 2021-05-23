@@ -28,8 +28,8 @@ endif ()
 
 set(MD_HIP_ARCH_FILES
         hip_arch_acc_imp.cpp
-        src/double_buffer.cpp
-        src/rho_double_buffer_imp.cpp
+        src/double-buffer/double_buffer.cpp
+        src/double-buffer/rho_double_buffer_imp.cpp
         src/global_ops.cpp
         # hip_kernels.h
         hip_kernels.hip.cpp

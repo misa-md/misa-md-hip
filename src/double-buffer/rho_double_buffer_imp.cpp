@@ -9,7 +9,7 @@
 #include "hip_macros.h" // from hip_pot lib
 
 #include "hip_kernels.h"
-#include "kernel_itl.hpp"
+#include "../kernel_itl.hpp"
 #include "md_hip_config.h"
 #include "rho_double_buffer_imp.h"
 
@@ -35,7 +35,6 @@ RhoDoubleBufferImp::RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream
 
   debug_printf("blocks: %d, threads: %d\n", blocks_num, threads_per_block);
 
-  _type_atom_count offset = h_domain.box_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
 }
 
 void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {

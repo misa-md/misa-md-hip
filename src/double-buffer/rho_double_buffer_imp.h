@@ -10,7 +10,7 @@
 #include "atom/atom_element.h"
 #include "double_buffer.h"
 #include "double_buffer_base_imp.hpp"
-#include "global_ops.h"
+#include "../global_ops.h"
 #include "hip_kernels.h"
 
 /**
