@@ -21,7 +21,7 @@
 
 NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int cur_type, const int nei_type,
                   _cuAtomElement &cur_atom, _cuAtomElement &nei_atom) {
-  if (dist2 > cutoff_radius) {
+  if (dist2 >= cutoff_radius) {
     return;
   }
   double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);
@@ -35,9 +35,25 @@ NEIGHBOR_PAIR_IMP(df, const double dist2, const double cutoff_radius, const int 
   // todo:
 }
 
-NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const int cur_type, const int nei_type,
-                  _cuAtomElement &cur_atom, _cuAtomElement &nei_atom) {
-  // todo:
+NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const double delx, const double dely,
+                  const double delz, const int cur_type, const int nei_type, _cuAtomElement &cur_atom,
+                  _cuAtomElement &nei_atom) {
+  if (dist2 >= cutoff_radius * cutoff_radius) {
+    return;
+  }
+  const double df_from = cur_atom.df;
+  const double df_to = nei_atom.df;
+
+  double fpair = hip_pot::hipToForce(cur_type, nei_type, dist2, df_from, df_to);
+  const double fx = delx * fpair;
+  const double fy = dely * fpair;
+  const double fz = delz * fpair;
+  atomicAdd_(&(cur_atom.f[0]), fx);
+  atomicAdd_(&(cur_atom.f[1]), fy);
+  atomicAdd_(&(cur_atom.f[2]), fz);
+  atomicAdd_(&(nei_atom.f[0]), -fx);
+  atomicAdd_(&(nei_atom.f[1]), -fy);
+  atomicAdd_(&(nei_atom.f[2]), -fz);
 }
 
 #endif // MISA_MD_HIP_KERNEL_PAIRS_H

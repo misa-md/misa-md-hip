@@ -23,8 +23,8 @@ __device__ __forceinline__ _type_atom_index _deviceAtom3DIndexToLinear(const _ty
 constexpr int ModeRho = 0;
 constexpr int ModeForce = 2;
 
-template <int MODE>
-__global__ void itl_atoms_pair(_cuAtomElement *d_atoms, tp_device_rho *_d_rhos, _hipDeviceNeiOffsets offsets,
+template <typename T, int MODE>
+__global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDeviceNeiOffsets offsets,
                                const _type_atom_index_kernel start_id, const _type_atom_index_kernel end_id,
                                double cutoff_radius) {
   const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
@@ -75,7 +75,7 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, tp_device_rho *_d_rhos, 
           NEIGHBOR_PAIR_FUNC(rho)(dist2, cutoff_radius, type0, nei_type, cur_atom, nei_atom);
         }
         if (MODE == ModeForce) {
-          NEIGHBOR_PAIR_FUNC(force)(dist2, cutoff_radius, type0, nei_type, cur_atom, nei_atom);
+          NEIGHBOR_PAIR_FUNC(force)(dist2, cutoff_radius, delx, dely, delz, type0, nei_type, cur_atom, nei_atom);
         }
       }
     }

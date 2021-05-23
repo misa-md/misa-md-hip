@@ -9,8 +9,18 @@
 
 #define HIP_DIMENSION 3
 
+typedef struct {
+  int cal_atoms_num;
+  int threads_num;
+  int atoms_per_thread;
+} _hipDeviceKernelParm;
+
+typedef struct Vec3 {
+  double ele[3];
+};
 
 typedef double tp_device_rho;
+typedef Vec3 tp_device_force;
 typedef _type_atom_index _type_atom_index_kernel;
 
 typedef struct {

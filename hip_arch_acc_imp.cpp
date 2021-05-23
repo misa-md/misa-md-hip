@@ -9,8 +9,9 @@
 
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
-#include "src/double-buffer/rho_double_buffer_imp.h"
 #include "src/double-buffer/df_double_buffer_imp.h"
+#include "src/double-buffer/force_double_buffer_imp.h"
+#include "src/double-buffer/rho_double_buffer_imp.h"
 #include "src/global_ops.h"
 
 //定义线程块各维线程数
@@ -24,6 +25,8 @@ constexpr unsigned int n = 5;
 _cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
 _cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
 tp_device_rho *d_rhos = nullptr;
+tp_device_force *d_forces = nullptr;
+
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;
@@ -150,6 +153,7 @@ void allocDeviceAtomsIfNull() {
   if (d_atoms == nullptr) {
     const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
     HIP_CHECK(hipMalloc((void **)&d_atoms, sizeof(AtomElement) * size)); // fixme: GPU存得下么
+  }
 
   // allocate 2 buffers
   if (d_atoms_buffer1 == nullptr || d_atoms_buffer1 == nullptr) {
@@ -165,9 +169,11 @@ void allocDeviceAtomsIfNull() {
   }
 
   if (d_rhos == nullptr) {
-    const _type_atom_count size_ = h_domain.box_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
-    HIP_CHECK(hipMalloc(&d_rhos, size_ * sizeof(double)))
-    HIP_CHECK(hipMemset(d_rhos, 0, size_ * sizeof(double)))
+    const _type_atom_count size_ = h_domain.ext_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+    HIP_CHECK(hipMalloc(&d_rhos, size_ * sizeof(tp_device_rho)))
+    HIP_CHECK(hipMemset(d_rhos, 0, size_ * sizeof(tp_device_rho)))
+    HIP_CHECK(hipMalloc(&d_forces, size_ * sizeof(tp_device_force)))
+    HIP_CHECK(hipMemset(d_forces, 0, size_ * sizeof(tp_device_force)))
   }
 }
 
@@ -200,20 +206,15 @@ void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
 }
 
 void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  debug_printf("calculating force.\n");
-  allocDeviceAtomsIfNull();
-  const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-  // HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, assert(hipSuccess==hipMemcpyHostToDevice);
-  HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
-  dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
-                   (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-                   (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  __kernel_calForce_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset, cutoff_radius);
-  if (hipSuccess != hipGetLastError()) {
-    debug_printf("launching kernel error.\n");
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
   }
-  // assert(1<2);
-  HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost));
-  // hipFree at the end of one step
+  allocDeviceAtomsIfNull();
+  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+                                           d_atoms_buffer2, d_forces, h_domain, d_nei_offset, cutoff_radius);
+  force_double_buffer.schedule();
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
 }
