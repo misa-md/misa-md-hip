@@ -9,7 +9,8 @@
 
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
-#include "src/double-buffer/double_buffer_imp.h"
+#include "src/double-buffer/rho_double_buffer_imp.h"
+#include "src/double-buffer/df_double_buffer_imp.h"
 #include "src/global_ops.h"
 
 //定义线程块各维线程数
@@ -185,26 +186,17 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
 }
 
 void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  debug_printf("calculating df.\n");
-  //间隙原子会导致原子信息发生变化，因此需要再次内存拷贝
-  allocDeviceAtomsIfNull();
-  const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-  HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  debug_printf("copy atoms.\n");
-  dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
-  dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
-                   (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-                   (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  assert(d_atoms != nullptr);
-  __kernel_calDf_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset);
-  debug_printf("launching kernels.\n");
-  if (hipSuccess != hipGetLastError()) {
-    debug_printf("launching kernel error.\n");
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
   }
-  HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost));
-  // cout<<sizeof(_cuAtomElement)<<endl<<"hhhhhhhhhhhhhhhhhhhh";
-  // cout<<sizeof(AtomElement)<<endl;
-  // cout<<"n是iiii"<<constValue_int[12]<<endl;
+  allocDeviceAtomsIfNull();
+  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+                                     d_atoms_buffer2, d_rhos, h_domain);
+  df_double_buffer.schedule();
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
 }
 
 void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
