@@ -42,8 +42,7 @@ void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   unsigned int data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
-  _cuAtomElement *d_p = block_id % 2 == 0 ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
-  d_p += atoms_per_layer * h_domain.ghost_size_z;
+  _cuAtomElement *d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
   tp_device_rho *rho_ptr = d_rhos + atoms_per_layer * (data_start_index + h_domain.ghost_size_z);
   // atoms number to be calculated in this block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);

@@ -94,10 +94,10 @@ public:
     DT *h_p = h_ptr_des_data + eles_per_block_item * data_start_index + fetch_offset;
     if (d_ptr_fetch_base == nullptr) {
       BT *d_p = (left ? d_ptr_device_buf1 : d_ptr_device_buf2) + fetch_offset;
-      HIP_CHECK(hipMemcpyAsync(d_p, h_p, sizeof(DT) * size, hipMemcpyHostToDevice, stream))
+      HIP_CHECK(hipMemcpyAsync(h_p, d_p, sizeof(DT) * size, hipMemcpyDeviceToHost, stream))
     } else {
       DT *d_p = d_ptr_fetch_base + eles_per_block_item * data_start_index + fetch_offset;
-      HIP_CHECK(hipMemcpyAsync(d_p, h_p, sizeof(DT) * size, hipMemcpyHostToDevice, stream))
+      HIP_CHECK(hipMemcpyAsync(h_p, d_p, sizeof(DT) * size, hipMemcpyDeviceToHost, stream))
     }
   }
 
