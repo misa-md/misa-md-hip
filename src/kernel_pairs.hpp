@@ -21,7 +21,7 @@
 
 NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int cur_type, const int nei_type,
                   _cuAtomElement &cur_atom, _cuAtomElement &nei_atom) {
-  if (dist2 >= cutoff_radius) {
+  if (dist2 >= cutoff_radius * cutoff_radius) {
     return;
   }
   double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);

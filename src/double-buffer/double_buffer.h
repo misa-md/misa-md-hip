@@ -7,6 +7,8 @@
 
 #include <hip/hip_runtime.h>
 
+typedef unsigned int _ty_data_block_id;
+
 class DoubleBuffer {
 public:
   DoubleBuffer(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len);

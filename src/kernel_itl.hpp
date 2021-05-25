@@ -25,15 +25,14 @@ constexpr int ModeForce = 2;
 
 template <typename T, int MODE>
 __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDeviceNeiOffsets offsets,
-                               const _type_atom_index_kernel start_id, const _type_atom_index_kernel end_id,
-                               double cutoff_radius) {
+                               const _ty_data_block_id start_id, const _ty_data_block_id end_id, double cutoff_radius) {
   const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-  // atoms number in this block.
+  // atoms number in this data block.
   const _type_atom_index_kernel atoms_num = (end_id - start_id) * d_domain.box_size_x * d_domain.box_size_y;
   const unsigned int threads_size = hipGridDim_x * hipBlockDim_x;
 
   // loop all atoms in current data-block
-  for (_type_atom_index_kernel atom_id = 0; atom_id < atoms_num; atom_id += threads_size) {
+  for (_type_atom_index_kernel atom_id = thread_id; atom_id < atoms_num; atom_id += threads_size) {
     const _type_atom_index_kernel z = atom_id / (d_domain.box_size_x * d_domain.box_size_y);
     const _type_atom_index_kernel y = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) / d_domain.box_size_x;
     const _type_atom_index_kernel x = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) % d_domain.box_size_x;
