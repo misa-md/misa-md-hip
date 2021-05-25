@@ -18,8 +18,10 @@ ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &st
                                            _cuAtomElement *_ptr_device_buf1, _cuAtomElement *_ptr_device_buf2,
                                            tp_device_force *_d_forces, _hipDeviceDomain h_domain,
                                            const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius)
-    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, 0, 0, 0, 0, _ptr_atoms, _ptr_atoms, nullptr,
-                          _ptr_device_buf1, _ptr_device_buf2),
+    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
+                          2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
+                          h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, _ptr_atoms, _ptr_atoms,
+                          nullptr, _ptr_device_buf1, _ptr_device_buf2),
       ptr_atoms(_ptr_atoms), d_forces(_d_forces), h_domain(h_domain), d_nei_offset(d_nei_offset),
       cutoff_radius(cutoff_radius), atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
   constexpr int threads_per_block = 256;
@@ -36,8 +38,7 @@ void ForceDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   unsigned int data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
-  _cuAtomElement *d_p = block_id % 2 == 0 ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
-  d_p += atoms_per_layer * h_domain.ghost_size_z;
+  _cuAtomElement *d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
   tp_device_force *force_ptr = d_forces + atoms_per_layer * (data_start_index + h_domain.ghost_size_z);
   // atoms number to be calculated in this block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
