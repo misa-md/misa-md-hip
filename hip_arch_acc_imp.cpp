@@ -6,8 +6,13 @@
 #include "hip_kernels.h"
 #include "hip_macros.h" // from hip_pot lib
 #include "hip_pot.h"
+
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
+#include "src/double-buffer/df_double_buffer_imp.h"
+#include "src/double-buffer/force_double_buffer_imp.h"
+#include "src/double-buffer/rho_double_buffer_imp.h"
+#include "src/global_ops.h"
 
 //定义线程块各维线程数
 #define THREADS_PER_BLOCK_X 16
@@ -16,7 +21,12 @@
 
 //#define CUDA_ASSERT(x) (assert((x)==hipSuccess))
 
+constexpr unsigned int n = 5;
 _cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
+_cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
+tp_device_rho *d_rhos = nullptr;
+tp_device_force *d_forces = nullptr;
+
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;
@@ -96,27 +106,33 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
 void hip_nei_offset_init(const NeighbourIndex<AtomElement> *nei_offset) {
   // constValue_int[21] = neighbours->nei_half_odd_offsets.size();//114
   // constValue_int[22] = neighbours->nei_half_even_offsets.size();
+#ifndef USE_NEWTONS_THIRD_LOW
   size_t nei_odd_size = nei_offset->nei_odd_offsets.size(); // 228 //偏移和原子id是long类型的,不过不影响？
   size_t nei_even_size = nei_offset->nei_even_offsets.size();
   NeiOffset *nei_odd = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_odd_size);
   NeiOffset *nei_even = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_even_size);
 
-  // sub_box区域内原子的邻居索引（因为x的odd，even，间隙原子等造成的不同，且x,y,z均大于等于0）(各维增量形式->一维增量）
-  // cout<<nei_odd_size<<"llllllllllllllllllllllllllllllll"<<endl;
-  // cout<<neighbours->nei_even_offsets.size()<<"eeeeeeeeeeeeeeeeeeeeeee"<<endl;
-  /*
-  for (int i = 0; i < nei_odd_size; i++) {
-    nei_odd[i] = nei_offset->nei_half_odd_offsets[i];//一维偏移量索引
-  }
-  for (int i = 0; i < nei_even_size; i++) {
-    nei_even[i] = nei_offset->nei_half_even_offsets[i];//
-  }*/
   for (size_t i = 0; i < nei_odd_size; i++) {
     nei_odd[i] = nei_offset->nei_odd_offsets[i]; //一维偏移量索引
   }
   for (size_t i = 0; i < nei_even_size; i++) {
     nei_even[i] = nei_offset->nei_even_offsets[i];
   }
+#endif
+
+#ifdef USE_NEWTONS_THIRD_LOW
+  const size_t nei_odd_size = nei_offset->nei_half_odd_offsets.size();
+  const size_t nei_even_size = nei_offset->nei_half_even_offsets.size();
+  NeiOffset *nei_odd = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_odd_size); // todo delete
+  NeiOffset *nei_even = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_even_size);
+
+  for (size_t i = 0; i < nei_odd_size; i++) {
+    nei_odd[i] = nei_offset->nei_half_odd_offsets[i];
+  }
+  for (size_t i = 0; i < nei_even_size; i++) {
+    nei_even[i] = nei_offset->nei_half_even_offsets[i];
+  }
+#endif
 
   NeiOffset *d_nei_odd, *d_nei_even;
   HIP_CHECK(hipMalloc((void **)&d_nei_odd, sizeof(NeiOffset) * nei_odd_size));
@@ -144,77 +160,67 @@ void allocDeviceAtomsIfNull() {
     const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
     HIP_CHECK(hipMalloc((void **)&d_atoms, sizeof(AtomElement) * size)); // fixme: GPU存得下么
   }
+
+  // allocate 2 buffers
+  if (d_atoms_buffer1 == nullptr || d_atoms_buffer1 == nullptr) {
+    const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
+    const _type_atom_count max_block_atom_size =
+        ((h_domain.box_size_z - 1) / n + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
+    if (d_atoms_buffer1 == nullptr) {
+      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer1, sizeof(AtomElement) * max_block_atom_size * n))
+    }
+    if (d_atoms_buffer2 == nullptr) {
+      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer2, sizeof(AtomElement) * max_block_atom_size * n))
+    }
+  }
+
+  if (d_rhos == nullptr) {
+    const _type_atom_count size_ = h_domain.ext_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+    HIP_CHECK(hipMalloc(&d_rhos, size_ * sizeof(tp_device_rho)))
+    HIP_CHECK(hipMemset(d_rhos, 0, size_ * sizeof(tp_device_rho)))
+    HIP_CHECK(hipMalloc(&d_forces, size_ * sizeof(tp_device_force)))
+    HIP_CHECK(hipMemset(d_forces, 0, size_ * sizeof(tp_device_force)))
+  }
 }
 
 void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  debug_printf("calculating rho.\n");
-  // CPU端电子云密度等是清零了的
-  //邻居晶格点索引处理
-  allocDeviceAtomsIfNull();
-  //内存拷贝host->device
-  const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-  HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  //启动核函数计算
-  //一个线程块最多1024个线程,16*8*8,如果sub_size_x等于二倍sub_size_y,即为一个正方体，那么线程任务分配大致平均
-  dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
-  dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
-                   (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-                   (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  debug_printf("launching kernel: <<<%d, %d ,%d>>>\n", (h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X,
-         (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-         (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  // hipLaunchKernelGGL(calRho, dim3(blockNumber), dim3(threadsPerBlock), 0, 0, d_atoms, d_constValue_int,
-  // d_constValue_double,d_nei_odd,d_nei_even);
-  __kernel_calRho_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset, cutoff_radius);
-  if (hipSuccess != hipGetLastError()) {
-    debug_printf("error\n");
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
   }
-  debug_printf("kernel finished.\n");
-  //内存拷贝device->host
-  HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost)); //一个AtomElement104个字节
-                                                                                           //输出测试
-  // cout<<"helloooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo"<<endl;
-  //插值后的spline，发现有很多个0,少数10^-6
+  allocDeviceAtomsIfNull();
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+                                       d_atoms_buffer2, d_rhos, h_domain, d_nei_offset, cutoff_radius);
+  rhp_double_buffer.schedule();
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
 }
 
 void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  debug_printf("calculating df.\n");
-  //间隙原子会导致原子信息发生变化，因此需要再次内存拷贝
-  allocDeviceAtomsIfNull();
-  const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-  HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  debug_printf("copy atoms.\n");
-  dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
-  dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
-                   (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-                   (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  assert(d_atoms != nullptr);
-  __kernel_calDf_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset);
-  debug_printf("launching kernels.\n");
-  if (hipSuccess != hipGetLastError()) {
-    debug_printf("launching kernel error.\n");
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
   }
-  HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost));
-  // cout<<sizeof(_cuAtomElement)<<endl<<"hhhhhhhhhhhhhhhhhhhh";
-  // cout<<sizeof(AtomElement)<<endl;
-  // cout<<"n是iiii"<<constValue_int[12]<<endl;
+  allocDeviceAtomsIfNull();
+  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+                                     d_atoms_buffer2, d_rhos, h_domain);
+  df_double_buffer.schedule();
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
 }
 
 void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
-  debug_printf("calculating force.\n");
-  allocDeviceAtomsIfNull();
-  const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-  // HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, assert(hipSuccess==hipMemcpyHostToDevice);
-  HIP_CHECK(hipMemcpy(d_atoms, atoms, sizeof(AtomElement) * size, hipMemcpyHostToDevice));
-  dim3 threadsPerBlock(THREADS_PER_BLOCK_X, THREADS_PER_BLOCK_Y, THREADS_PER_BLOCK_Z);
-  dim3 blockNumber((h_domain.box_size_x + THREADS_PER_BLOCK_X - 1) / THREADS_PER_BLOCK_X, // sub_size_x
-                   (h_domain.box_size_y + THREADS_PER_BLOCK_Y - 1) / THREADS_PER_BLOCK_Y,
-                   (h_domain.box_size_z + THREADS_PER_BLOCK_Z - 1) / THREADS_PER_BLOCK_Z);
-  __kernel_calForce_wrapper(blockNumber, threadsPerBlock, d_atoms, d_nei_offset, cutoff_radius);
-  if (hipSuccess != hipGetLastError()) {
-    debug_printf("launching kernel error.\n");
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
   }
-  // assert(1<2);
-  HIP_CHECK(hipMemcpy(atoms, d_atoms, sizeof(AtomElement) * size, hipMemcpyDeviceToHost));
-  // hipFree at the end of one step
+  allocDeviceAtomsIfNull();
+  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+                                           d_atoms_buffer2, d_forces, h_domain, d_nei_offset, cutoff_radius);
+  force_double_buffer.schedule();
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
 }
