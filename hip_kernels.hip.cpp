@@ -34,48 +34,24 @@ inline __device__ bool _deviceIsAtomInBox(_type_atom_index x, _type_atom_index y
  */
 __global__ void calc_rho(_cuAtomElement *, double *, _hipDeviceNeiOffsets, long, long, double) { return; }
 
-__global__ void calDf(_cuAtomElement *d_atoms) {
-  //三维线程id映射
-  /*
-  int x = blockIdx.x * blockDim.x + threadIdx.x;
-  int y = blockIdx.y * blockDim.y + threadIdx.y;
-  int z = blockIdx.z * blockDim.z + threadIdx.z;
-  if (!(x < d_domain.box_size_x && y < d_domain.box_size_y && z < d_domain.box_size_z)) { //判断线程是否越界
-    return;
-  }*/
-  int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-  int atoms_num = d_domain.box_size_x * d_domain.box_size_y * d_domain.box_size_z;
-  // int atoms_per_thread = 61;//200*200*200
-  int atoms_per_thread = 1;
-  int threads_num = (atoms_num + atoms_per_thread - 1) / atoms_per_thread;
-  if (thread_id >= threads_num) {
-    return;
-  }
-  int atom_id;
-  int x, y, z;
-  _type_atom_index index;
-  int type0;
-  double rho;
-  for (int i = 0; i < atoms_per_thread; i++) {
-    atom_id = thread_id * atoms_per_thread + i;
-    if (atom_id >= atoms_num) {
-      return;
-    }
-    /*
-    if (id >= d_domain.box_size_x * d_domain.box_size_y * d_domain.box_size_z) { //判断线程是否越界
-      return;
-    }*/
-    z = atom_id / (d_domain.box_size_x * d_domain.box_size_y);
-    y = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) / d_domain.box_size_x;
-    x = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) % d_domain.box_size_x;
-    index = _deviceAtom3DIndexToLinear(x, y, z);
-    type0 = d_atoms[index].type;
-    rho = d_atoms[index].rho;
+__global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_data_block_id end_id) {
+  const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+  // atoms number in this data block.
+  const _type_atom_index_kernel atoms_num = (end_id - start_id) * d_domain.box_size_x * d_domain.box_size_y;
+  const unsigned int threads_size = hipGridDim_x * hipBlockDim_x;
+
+  for (int atom_id = thread_id; atom_id < atoms_num; atom_id += threads_size) {
+    const int z = atom_id / (d_domain.box_size_x * d_domain.box_size_y);
+    const int y = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) / d_domain.box_size_x;
+    const int x = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) % d_domain.box_size_x;
+    const _type_atom_index index = _deviceAtom3DIndexToLinear(x, y, z);
+    const int type0 = d_atoms[index].type;
+    const double rho = d_atoms[index].rho;
 
     if (type0 < 0) { //间隙原子，什么都不做 todo: put it here?
-    } else {
-      d_atoms[index].df = hip_pot::hipDEmbedEnergy(type0, rho);
+      continue;
     }
+    d_atoms[index].df = hip_pot::hipDEmbedEnergy(type0, rho);
   }
 }
 

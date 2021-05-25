@@ -6,6 +6,7 @@
 #define HIP_KERNELS_H
 
 #include "src/global_ops.h"
+#include "src/double-buffer/double_buffer.h"
 #include <hip/hip_runtime.h>
 
 /**
@@ -21,7 +22,7 @@ __global__ void calc_rho(_cuAtomElement *d_atoms, tp_device_rho *_d_rhos, _hipDe
                          const _type_atom_index_kernel start_id, const _type_atom_index_kernel end_id,
                          double cutoff_radius);
 
-__global__ void calDf(_cuAtomElement *d_atoms);
+__global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_data_block_id end_id);
 
 __global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius);
 
