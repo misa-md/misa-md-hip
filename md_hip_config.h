@@ -9,6 +9,8 @@
 #include <stdarg.h>
 #include "types/pre_define.h" // MD_DEV_MODE macro this header
 
+//#define USE_NEWTONS_THIRD_LOW
+
 #ifdef __cplusplus
 extern "C" {
 #endif

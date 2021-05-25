@@ -26,8 +26,10 @@ NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int
   }
   double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);
   atomicAdd_(&cur_atom.rho, rhoTmp);
+#ifdef USE_NEWTONS_THIRD_LOW
   rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
   atomicAdd_(&nei_atom.rho, rhoTmp);
+#endif
 }
 
 NEIGHBOR_PAIR_IMP(df, const double dist2, const double cutoff_radius, const int cur_type, const int nei_type,
@@ -51,9 +53,11 @@ NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const d
   atomicAdd_(&(cur_atom.f[0]), fx);
   atomicAdd_(&(cur_atom.f[1]), fy);
   atomicAdd_(&(cur_atom.f[2]), fz);
+#ifdef USE_NEWTONS_THIRD_LOW
   atomicAdd_(&(nei_atom.f[0]), -fx);
   atomicAdd_(&(nei_atom.f[1]), -fy);
   atomicAdd_(&(nei_atom.f[2]), -fz);
+#endif
 }
 
 #endif // MISA_MD_HIP_KERNEL_PAIRS_H

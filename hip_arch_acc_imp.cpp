@@ -106,27 +106,33 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
 void hip_nei_offset_init(const NeighbourIndex<AtomElement> *nei_offset) {
   // constValue_int[21] = neighbours->nei_half_odd_offsets.size();//114
   // constValue_int[22] = neighbours->nei_half_even_offsets.size();
+#ifndef USE_NEWTONS_THIRD_LOW
   size_t nei_odd_size = nei_offset->nei_odd_offsets.size(); // 228 //偏移和原子id是long类型的,不过不影响？
   size_t nei_even_size = nei_offset->nei_even_offsets.size();
   NeiOffset *nei_odd = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_odd_size);
   NeiOffset *nei_even = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_even_size);
 
-  // sub_box区域内原子的邻居索引（因为x的odd，even，间隙原子等造成的不同，且x,y,z均大于等于0）(各维增量形式->一维增量）
-  // cout<<nei_odd_size<<"llllllllllllllllllllllllllllllll"<<endl;
-  // cout<<neighbours->nei_even_offsets.size()<<"eeeeeeeeeeeeeeeeeeeeeee"<<endl;
-  /*
-  for (int i = 0; i < nei_odd_size; i++) {
-    nei_odd[i] = nei_offset->nei_half_odd_offsets[i];//一维偏移量索引
-  }
-  for (int i = 0; i < nei_even_size; i++) {
-    nei_even[i] = nei_offset->nei_half_even_offsets[i];//
-  }*/
   for (size_t i = 0; i < nei_odd_size; i++) {
     nei_odd[i] = nei_offset->nei_odd_offsets[i]; //一维偏移量索引
   }
   for (size_t i = 0; i < nei_even_size; i++) {
     nei_even[i] = nei_offset->nei_even_offsets[i];
   }
+#endif
+
+#ifdef USE_NEWTONS_THIRD_LOW
+  const size_t nei_odd_size = nei_offset->nei_half_odd_offsets.size();
+  const size_t nei_even_size = nei_offset->nei_half_even_offsets.size();
+  NeiOffset *nei_odd = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_odd_size); // todo delete
+  NeiOffset *nei_even = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_even_size);
+
+  for (size_t i = 0; i < nei_odd_size; i++) {
+    nei_odd[i] = nei_offset->nei_half_odd_offsets[i];
+  }
+  for (size_t i = 0; i < nei_even_size; i++) {
+    nei_even[i] = nei_offset->nei_half_even_offsets[i];
+  }
+#endif
 
   NeiOffset *d_nei_odd, *d_nei_even;
   HIP_CHECK(hipMalloc((void **)&d_nei_odd, sizeof(NeiOffset) * nei_odd_size));
