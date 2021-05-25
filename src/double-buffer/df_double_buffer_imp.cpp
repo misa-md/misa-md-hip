@@ -8,7 +8,7 @@ DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2,
                                      const unsigned int data_len, AtomElement *_ptr_atoms,
                                      _cuAtomElement *_ptr_device_buf1, _cuAtomElement *_ptr_device_buf2,
                                      tp_device_rho *_d_dfs, _hipDeviceDomain h_domain)
-    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, 0, 0, 0, _ptr_atoms, _ptr_atoms, nullptr,
+    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, 0, 0, 0, 0, _ptr_atoms, _ptr_atoms, nullptr,
                           _ptr_device_buf1, _ptr_device_buf2),
       ptr_atoms(_ptr_atoms), d_dfs(_d_dfs), h_domain(h_domain),
       atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {

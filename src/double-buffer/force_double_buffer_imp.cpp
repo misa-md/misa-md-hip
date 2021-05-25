@@ -18,7 +18,7 @@ ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &st
                                            _cuAtomElement *_ptr_device_buf1, _cuAtomElement *_ptr_device_buf2,
                                            tp_device_force *_d_forces, _hipDeviceDomain h_domain,
                                            const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius)
-    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, 0, 0, 0, _ptr_atoms, _ptr_atoms, nullptr,
+    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, 0, 0, 0, 0, _ptr_atoms, _ptr_atoms, nullptr,
                           _ptr_device_buf1, _ptr_device_buf2),
       ptr_atoms(_ptr_atoms), d_forces(_d_forces), h_domain(h_domain), d_nei_offset(d_nei_offset),
       cutoff_radius(cutoff_radius), atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
