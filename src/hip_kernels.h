@@ -5,9 +5,10 @@
 #ifndef HIP_KERNELS_H
 #define HIP_KERNELS_H
 
-#include "src/global_ops.h"
-#include "src/double-buffer/double_buffer.h"
 #include <hip/hip_runtime.h>
+
+#include "global_ops.h"
+#include "double-buffer/double_buffer.h"
 
 /**
  * calculate rho on device side

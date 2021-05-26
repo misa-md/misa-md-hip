@@ -9,10 +9,10 @@
 
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
-#include "src/double-buffer/df_double_buffer_imp.h"
-#include "src/double-buffer/force_double_buffer_imp.h"
-#include "src/double-buffer/rho_double_buffer_imp.h"
-#include "src/global_ops.h"
+#include "double-buffer/df_double_buffer_imp.h"
+#include "double-buffer/force_double_buffer_imp.h"
+#include "double-buffer/rho_double_buffer_imp.h"
+#include "global_ops.h"
 
 //定义线程块各维线程数
 #define THREADS_PER_BLOCK_X 16

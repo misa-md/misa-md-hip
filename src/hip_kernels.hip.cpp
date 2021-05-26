@@ -6,8 +6,9 @@
 #include "hip_kernels.h"
 #include "hip_macros.h"
 #include "hip_pot_device.h"
+
 #include "md_hip_config.h"
-#include "src/global_ops.h"
+#include "global_ops.h"
 
 
 /**convert a 3d index (x,y,z) to Linear index in atoms array.

@@ -1,5 +1,10 @@
-#include "kernel_wrapper.h"
+//
+// Created by genshen on 2020/04/27.
+//
+
 #include <hip/hip_runtime.h>
+
+#include "kernel_wrapper.h"
 
 void __kernel_calRho_wrapper(dim3 grid_dims, dim3 blocks_dims, _cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets,
                              double cutoff_radius) {
