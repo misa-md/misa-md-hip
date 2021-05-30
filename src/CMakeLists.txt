@@ -30,6 +30,7 @@ set(MD_HIP_ARCH_FILES
         hip_kernels.hip.cpp
         # kernel_wrapper.h
         kernel_wrapper.hip.cpp
+        mem.cpp
         )
 set_source_files_properties(${MD_HIP_ARCH_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
 
@@ -38,7 +39,7 @@ set(MD_HIP_LIB_NAME md_arch_hip)
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
-hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_FILES})
+hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_FILES} cli.cpp)
 # target_compile_options(${MD_HIP_LIB_NAME} PRIVATE "-Xcompiler" "-fPIC")
 
 target_include_directories(

@@ -7,12 +7,13 @@
 #include "hip_macros.h" // from hip_pot lib
 #include "hip_pot.h"
 
-#include "kernel_wrapper.h"
-#include "md_hip_config.h"
+#include "cli.h"
 #include "double-buffer/df_double_buffer_imp.h"
 #include "double-buffer/force_double_buffer_imp.h"
 #include "double-buffer/rho_double_buffer_imp.h"
 #include "global_ops.h"
+#include "kernel_wrapper.h"
+#include "md_hip_config.h"
 
 //定义线程块各维线程数
 #define THREADS_PER_BLOCK_X 16
@@ -21,7 +22,6 @@
 
 //#define CUDA_ASSERT(x) (assert((x)==hipSuccess))
 
-constexpr unsigned int n = 5;
 _cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
 _cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
 tp_device_rho *d_rhos = nullptr;
@@ -42,6 +42,7 @@ void hip_env_init() {
   std::cout << " System major " << devProp.major << std::endl;
   std::cout << " agent prop name " << devProp.name << std::endl;
   std::cout << "hip Device prop succeeded " << std::endl;
+  std::cout << "batches number: " << batches_cli << std::endl;
 }
 
 void hip_env_clean() {
@@ -165,12 +166,12 @@ void allocDeviceAtomsIfNull() {
   if (d_atoms_buffer1 == nullptr || d_atoms_buffer1 == nullptr) {
     const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
     const _type_atom_count max_block_atom_size =
-        ((h_domain.box_size_z - 1) / n + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
+        ((h_domain.box_size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
     if (d_atoms_buffer1 == nullptr) {
-      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer1, sizeof(AtomElement) * max_block_atom_size * n))
+      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer1, sizeof(AtomElement) * max_block_atom_size * batches_cli))
     }
     if (d_atoms_buffer2 == nullptr) {
-      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer2, sizeof(AtomElement) * max_block_atom_size * n))
+      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer2, sizeof(AtomElement) * max_block_atom_size * batches_cli))
     }
   }
 
@@ -189,7 +190,7 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, atoms, d_atoms_buffer1,
                                        d_atoms_buffer2, d_rhos, h_domain, d_nei_offset, cutoff_radius);
   rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
@@ -203,7 +204,7 @@ void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
+  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, atoms, d_atoms_buffer1,
                                      d_atoms_buffer2, d_rhos, h_domain);
   df_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
@@ -217,8 +218,9 @@ void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], n, h_domain.box_size_z, atoms, d_atoms_buffer1,
-                                           d_atoms_buffer2, d_forces, h_domain, d_nei_offset, cutoff_radius);
+  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, atoms,
+                                           d_atoms_buffer1, d_atoms_buffer2, d_forces, h_domain, d_nei_offset,
+                                           cutoff_radius);
   force_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
