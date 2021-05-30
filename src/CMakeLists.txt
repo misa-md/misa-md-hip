@@ -30,6 +30,7 @@ set(MD_HIP_ARCH_FILES
         hip_kernels.hip.cpp
         # kernel_wrapper.h
         kernel_wrapper.hip.cpp
+        mem.cpp
         )
 set_source_files_properties(${MD_HIP_ARCH_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
 
