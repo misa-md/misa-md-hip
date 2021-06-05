@@ -9,17 +9,7 @@
 
 #include "md_hip_config.h"
 #include "global_ops.h"
-
-
-/**convert a 3d index (x,y,z) to Linear index in atoms array.
- *where x, y, z are the atom coordinate in simulation box (not include ghost region).
- * note: the atom coordinate at x dimension is doubled.
- */
-inline __device__ _type_atom_index _deviceAtom3DIndexToLinear(const _type_atom_index x, const _type_atom_index y,
-                                                              const _type_atom_index z) {
-  return ((z + d_domain.ghost_size_z) * d_domain.ext_size_y + y + d_domain.ghost_size_y) * d_domain.ext_size_x + x +
-         d_domain.ghost_size_x;
-}
+#include "kernel_itl.hpp"
 
 /**
  * Check whether the atoms assigned to current thread is in the simulation box.
