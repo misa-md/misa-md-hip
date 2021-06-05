@@ -199,6 +199,10 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
 }
 
 void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
+#ifndef USE_NEWTONS_THIRD_LOW
+  return;
+#endif
+
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));

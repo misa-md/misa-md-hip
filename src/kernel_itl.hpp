@@ -69,7 +69,8 @@ __device__ __forceinline__ void nei_interaction(int cur_type, _cuAtomElement &cu
 
 template <typename T, int MODE>
 __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDeviceNeiOffsets offsets,
-                               const _ty_data_block_id start_id, const _ty_data_block_id end_id, double cutoff_radius) {
+                                const _ty_data_block_id start_id, const _ty_data_block_id end_id,
+                                const double cutoff_radius) {
   const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
   // atoms number in this data block.
   const _type_atom_index_kernel atoms_num = (end_id - start_id) * d_domain.box_size_x * d_domain.box_size_y;
@@ -86,6 +87,12 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDe
       _cuAtomElement &nei_atom = d_atoms[index + offset]; /* get neighbor atom*/
       nei_interaction<MODE>(type0, cur_atom, nei_atom, x0, y0, z0, cutoff_radius);
     }
+
+#ifndef USE_NEWTONS_THIRD_LOW
+    if (MODE == ModeRho) {
+      cur_atom.df = hip_pot::hipDEmbedEnergy(type0, cur_atom.rho);
+    }
+#endif // USE_NEWTONS_THIRD_LOW
   }
 }
 
