@@ -15,9 +15,9 @@ typedef struct {
   int atoms_per_thread;
 } _hipDeviceKernelParm;
 
-typedef struct Vec3 {
+typedef struct {
   double ele[3];
-};
+} Vec3;
 
 typedef double tp_device_rho;
 typedef Vec3 tp_device_force;

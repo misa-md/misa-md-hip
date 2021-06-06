@@ -1,6 +1,7 @@
 #include <algorithm>
-#include <cstdio>
 #include <hip/hip_runtime.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #include "hip_eam_device.h"
 #include "hip_kernels.h"
@@ -11,14 +12,6 @@
 #include "global_ops.h"
 #include "kernel_itl.hpp"
 
-/**
- * Check whether the atoms assigned to current thread is in the simulation box.
- * \param x, y, z: the atom coordinate in simulation region of current MPI process.
- * \return true is In, falsr is Out.
- */
-inline __device__ bool _deviceIsAtomInBox(_type_atom_index x, _type_atom_index y, _type_atom_index z) {
-  return x < d_domain.box_size_x && y < d_domain.box_size_y && z < d_domain.box_size_z;
-}
 
 /**
  * @deprecated
@@ -49,6 +42,4 @@ __global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_d
 /**
  * @deprecated
  */
-__global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius) {
-
-}
+__global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius) {}
