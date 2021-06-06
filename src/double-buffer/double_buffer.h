@@ -11,6 +11,13 @@ typedef unsigned int _ty_data_block_id;
 
 class DoubleBuffer {
 public:
+  /**
+   * Initialize double buffer with data length and suggested blocks number.
+   * @Note: It the data_len can not be divided by blocks, the real blocks will plus 1.
+   * @param stream1,stream2 hip stream for 2 double buffer.
+   * @param blocks suggested blocks number.
+   * @param data_len data length.
+   */
   DoubleBuffer(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len);
 
   /**
