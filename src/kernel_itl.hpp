@@ -46,31 +46,29 @@ constexpr int ModeForce = 2;
 
 template <int MODE>
 __device__ __forceinline__ void nei_interaction(int cur_type, _cuAtomElement &cur_atom, _cuAtomElement &nei_atom,
-                                                double _x0, double _y0, double _z0, double cutoff) {
-  const double xtemp = nei_atom.x[0];
-  const double ytemp = nei_atom.x[1];
-  const double ztemp = nei_atom.x[2];
-  int nei_type = nei_atom.type;
+                                                double _x0, double _y0, double _z0, double &t0, double &t1, double &t2,
+                                                double cutoff) {
+  const int nei_type = nei_atom.type;
   if (nei_type < 0) {
     return;
   } else {
-    const double delx = _x0 - xtemp;
-    const double dely = _y0 - ytemp;
-    const double delz = _z0 - ztemp;
+    const double delx = _x0 - nei_atom.x[0];
+    const double dely = _y0 - nei_atom.x[1];
+    const double delz = _z0 - nei_atom.x[2];
     const double dist2 = delx * delx + dely * dely + delz * delz;
     if (MODE == ModeRho) {
-      NEIGHBOR_PAIR_FUNC(rho)(dist2, cutoff, cur_type, nei_type, cur_atom, nei_atom);
+      NEIGHBOR_PAIR_FUNC(rho)(dist2, cutoff, cur_type, nei_type, cur_atom, nei_atom, t0);
     }
     if (MODE == ModeForce) {
-      NEIGHBOR_PAIR_FUNC(force)(dist2, cutoff, delx, dely, delz, cur_type, nei_type, cur_atom, nei_atom);
+      NEIGHBOR_PAIR_FUNC(force)(dist2, cutoff, delx, dely, delz, cur_type, nei_type, cur_atom, nei_atom, t0, t1, t2);
     }
   }
 }
 
 template <typename T, int MODE>
 __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDeviceNeiOffsets offsets,
-                                const _ty_data_block_id start_id, const _ty_data_block_id end_id,
-                                const double cutoff_radius) {
+                               const _ty_data_block_id start_id, const _ty_data_block_id end_id,
+                               const double cutoff_radius) {
   const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
   // atoms number in this data block.
   const _type_atom_index_kernel atoms_num = (end_id - start_id) * d_domain.box_size_x * d_domain.box_size_y;
@@ -81,11 +79,20 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDe
     ATOM_ID_TO_LATTICE(_type_atom_index_kernel, atom_id, d_domain);
     // loop each neighbor atoms, and calculate rho contribution
     const size_t j = (x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even_size : offsets.nei_odd_size;
+    double t0 = 0.0, t1 = 0.0, t2 = 0.0; // summation of rho or force
     for (size_t k = 0; k < j; k++) {
       // neighbor can be index with odd x or even x
       const int offset = (x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even[k] : offsets.nei_odd[k];
       _cuAtomElement &nei_atom = d_atoms[index + offset]; /* get neighbor atom*/
-      nei_interaction<MODE>(type0, cur_atom, nei_atom, x0, y0, z0, cutoff_radius);
+      nei_interaction<MODE>(type0, cur_atom, nei_atom, x0, y0, z0, t0, t1, t2, cutoff_radius);
+    }
+    if (MODE == ModeRho) {
+      cur_atom.rho = t0;
+    }
+    if (MODE == ModeForce) {
+      cur_atom.f[0] = t0;
+      cur_atom.f[1] = t1;
+      cur_atom.f[2] = t2;
     }
 
 #ifndef USE_NEWTONS_THIRD_LOW

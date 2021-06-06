@@ -20,12 +20,12 @@
 #define NEIGHBOR_PAIR_IMP(itl_name, ...) __device__ __forceinline__ void NEIGHBOR_PAIR_FUNC(itl_name)(__VA_ARGS__)
 
 NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int cur_type, const int nei_type,
-                  _cuAtomElement &cur_atom, _cuAtomElement &nei_atom) {
+                  _cuAtomElement &cur_atom, _cuAtomElement &nei_atom, double &t0) {
   if (dist2 >= cutoff_radius * cutoff_radius) {
     return;
   }
   double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);
-  atomicAdd_(&cur_atom.rho, rhoTmp);
+  atomicAdd_(&t0, rhoTmp);
 #ifdef USE_NEWTONS_THIRD_LOW
   rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
   atomicAdd_(&nei_atom.rho, rhoTmp);
@@ -39,7 +39,7 @@ NEIGHBOR_PAIR_IMP(df, const double dist2, const double cutoff_radius, const int 
 
 NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const double delx, const double dely,
                   const double delz, const int cur_type, const int nei_type, _cuAtomElement &cur_atom,
-                  _cuAtomElement &nei_atom) {
+                  _cuAtomElement &nei_atom, double &t0, double &t1, double &t2) {
   if (dist2 >= cutoff_radius * cutoff_radius) {
     return;
   }
@@ -50,9 +50,9 @@ NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const d
   const double fx = delx * fpair;
   const double fy = dely * fpair;
   const double fz = delz * fpair;
-  atomicAdd_(&(cur_atom.f[0]), fx);
-  atomicAdd_(&(cur_atom.f[1]), fy);
-  atomicAdd_(&(cur_atom.f[2]), fz);
+  atomicAdd_(&t0, fx);
+  atomicAdd_(&t1, fy);
+  atomicAdd_(&t2, fz);
 #ifdef USE_NEWTONS_THIRD_LOW
   atomicAdd_(&(nei_atom.f[0]), -fx);
   atomicAdd_(&(nei_atom.f[1]), -fy);
