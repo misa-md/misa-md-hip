@@ -7,11 +7,12 @@
 
 #include "double_buffer.h"
 
-DoubleBuffer::DoubleBuffer(hipStream_t &_stream1, hipStream_t &_stream2, const unsigned int blocks,
+DoubleBuffer::DoubleBuffer(hipStream_t &_stream1, hipStream_t &_stream2, const unsigned int _blocks,
                            const unsigned int data_len)
-    : stream1(_stream1), stream2(_stream2), blocks(blocks), data_len(data_len) {
-  if (blocks <= 0) {
-    throw std::invalid_argument("invalid block number.");
+    : stream1(_stream1), stream2(_stream2), blocks(data_len % _blocks == 0 ? _blocks : _blocks + 1),
+      data_len(data_len) {
+  if (data_len <= 0 || blocks <= 0) {
+    throw std::invalid_argument("invalid data length or block number.");
     return;
   }
   if (data_len < blocks) {
