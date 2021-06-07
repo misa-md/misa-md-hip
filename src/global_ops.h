@@ -13,4 +13,6 @@
 extern __device__ __constant__ _hipDeviceDomain d_domain;
 //__device__ _hipDeviceKernelParm d_kernelParm;
 
+void setDeviceDomain(_hipDeviceDomain h_domain);
+
 #endif // GLOBAL_OPS_H
