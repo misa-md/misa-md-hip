@@ -10,7 +10,6 @@
 #include "hip_macros.h"
 #include "hip_pot_device.h"
 
-#include "kernel_pairs.hpp"
 #include "kernel_types.h"
 #include "md_hip_config.h"
 

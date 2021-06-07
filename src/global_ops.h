@@ -5,6 +5,8 @@
 #ifndef GLOBAL_OPS_H
 #define GLOBAL_OPS_H
 
+#include <hip/hip_runtime.h>
+
 #include "kernel_types.h"
 
 // global domain
