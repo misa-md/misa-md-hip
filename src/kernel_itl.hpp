@@ -10,6 +10,7 @@
 
 #include "kernel_pairs.hpp"
 #include "kernel_types.h"
+#include "global_ops.h"
 #include "md_hip_config.h"
 
 /**

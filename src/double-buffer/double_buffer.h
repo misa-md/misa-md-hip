@@ -7,7 +7,7 @@
 
 #include <hip/hip_runtime.h>
 
-typedef unsigned int _ty_data_block_id;
+#include "../kernel_types.h"
 
 class DoubleBuffer {
 public:
