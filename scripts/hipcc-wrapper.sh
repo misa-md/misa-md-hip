@@ -1,4 +1,5 @@
 #!/bin/sh
+## Note: this script is DEPRECATED. please use 
 
 # this wrapper script is used for nvlink/hipcc to ignore link static libs twice.
 REPLACE="../src/arch_hip/lib/libmd_arch_hip.a"
@@ -13,11 +14,6 @@ for arg in $@
 do
   case $arg in
     $REPLACE) # remove in building misa-md binary
-      if [ "$is_first" = false ]; then
-        newcmd="$newcmd $arg"
-      fi
-      is_first=true
-      ;; $REPLACE)
       if [ "$is_first" = false ]; then
         newcmd="$newcmd $arg"
       fi
