@@ -150,7 +150,7 @@ void hip_nei_offset_init(const NeighbourIndex<AtomElement> *nei_offset) {
 }
 
 void hip_pot_init(eam *_pot) {
-  auto _pot_types = std::vector<atom_type::_type_atomic_no>{26, 29, 28};
+  auto _pot_types = std::vector<atom_type::_type_atomic_no>{0,1,2};
   hip_pot::_type_device_pot d_pot = hip_pot::potCopyHostToDevice(_pot, _pot_types);
   hip_pot::assignDevicePot(d_pot);
 }
