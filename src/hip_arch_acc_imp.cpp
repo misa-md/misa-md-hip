@@ -184,7 +184,8 @@ void allocDeviceAtomsIfNull() {
   }
 }
 
-void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
+void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
+  AtomElement *atoms = _atoms.atoms;
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));
@@ -198,7 +199,8 @@ void hip_eam_rho_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
   }
 }
 
-void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
+void hip_eam_df_calc(eam *pot,  _type_atom_list_collection _atoms, double cutoff_radius) {
+  AtomElement *atoms = _atoms.atoms;
 #ifndef USE_NEWTONS_THIRD_LOW
   return;
 #endif
@@ -216,7 +218,8 @@ void hip_eam_df_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
   }
 }
 
-void hip_eam_force_calc(eam *pot, AtomElement *atoms, double cutoff_radius) {
+void hip_eam_force_calc(eam *pot,  _type_atom_list_collection _atoms, double cutoff_radius) {
+  AtomElement *atoms = _atoms.atoms;
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));

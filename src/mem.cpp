@@ -10,14 +10,14 @@
 
 #include "arch/arch_imp.h"
 
-AtomElement *hip_create_atoms_mem(_type_atom_count size_x, _type_atom_count size_y, _type_atom_count size_z) {
-  AtomElement *atoms;
-  HIP_CHECK(hipHostMalloc(&atoms, size_x * size_y * size_z * sizeof(AtomElement)))
+bool hip_create_atoms_mem(void **atoms, std::size_t data_type_size, _type_atom_count size_x, _type_atom_count size_y,
+                          _type_atom_count size_z) {
+  HIP_CHECK(hipHostMalloc(atoms, size_x * size_y * size_z * data_type_size))
   assert(atoms != nullptr);
-  return atoms;
+  return true;
 }
 
-bool hip_release_atoms_mem(AtomElement *atoms) {
+bool hip_release_atoms_mem(void *atoms) {
   hipHostFree(atoms);
   return true;
 }
