@@ -8,9 +8,9 @@
 #include "atom/atom_element.h"
 #include "hip_macros.h" // from hip_pot lib
 
-#include "../kernel_itl.hpp"
+#include "kernels/kernel_itl.hpp"
 #include "force_double_buffer_imp.h"
-#include "hip_kernels.h"
+#include "kernels/hip_kernels.h"
 #include "md_hip_config.h"
 
 ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
