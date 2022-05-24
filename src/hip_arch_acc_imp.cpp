@@ -3,7 +3,7 @@
 #include <iostream>
 
 #include "arch/arch_imp.h"
-#include "hip_kernels.h"
+#include "kernels/hip_kernels.h"
 #include "hip_macros.h" // from hip_pot lib
 #include "hip_pot.h"
 

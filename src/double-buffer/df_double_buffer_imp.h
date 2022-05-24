@@ -11,7 +11,7 @@
 #include "atom/atom_element.h"
 #include "double_buffer.h"
 #include "double_buffer_base_imp.hpp"
-#include "hip_kernels.h"
+#include "kernels/hip_kernels.h"
 
 /**
  * double buffer implementation for calculating derivative of embedded energy: df.

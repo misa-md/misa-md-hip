@@ -11,7 +11,7 @@
 #include "double_buffer.h"
 #include "double_buffer_base_imp.hpp"
 #include "../global_ops.h"
-#include "hip_kernels.h"
+#include "kernels/hip_kernels.h"
 
 class ForceDoubleBufferImp : public DoubleBufferBaseImp<_cuAtomElement, AtomElement, AtomElement> {
 public:

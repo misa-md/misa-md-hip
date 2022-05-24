@@ -42,7 +42,7 @@ set(MD_HIP_ARCH_FILES
         double-buffer/force_double_buffer_imp.cpp
         global_ops.cpp
         hip_arch_acc_imp.cpp
-        hip_kernels.hip.cpp
+        kernels/hip_kernels.hip.cpp
         kernel_wrapper.hip.cpp
         mem.cpp
         )
