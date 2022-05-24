@@ -33,9 +33,12 @@ target_include_directories(
 target_link_libraries(md_arch_hip_normal PUBLIC md)
 
 ## set hip side source files.
-set(MD_HIP_ARCH_FILES
-        # hip_kernels.h
-        # kernel_wrapper.h
+set(MD_HIP_ARCH_HEADER_FILES
+        hip_kernels.h
+        kernel_wrapper.h
+        )
+
+set(MD_HIP_ARCH_SOURCE_FILES
         double-buffer/double_buffer.cpp
         double-buffer/rho_double_buffer_imp.cpp
         double-buffer/df_double_buffer_imp.cpp
@@ -47,14 +50,14 @@ set(MD_HIP_ARCH_FILES
         mem.cpp
         )
 
-set_source_files_properties(${MD_HIP_ARCH_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+set_source_files_properties(${MD_HIP_ARCH_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
 
 set(MD_HIP_LIB_NAME md_arch_hip)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
-hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_FILES})
+hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_SOURCE_FILES} ${MD_HIP_ARCH_HEADER_FILES})
 # target_compile_options(${MD_HIP_LIB_NAME} PRIVATE "-Xcompiler" "-fPIC")
 
 target_include_directories(
