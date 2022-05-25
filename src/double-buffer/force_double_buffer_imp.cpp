@@ -8,15 +8,15 @@
 #include "atom/atom_element.h"
 #include "hip_macros.h" // from hip_pot lib
 
-#include "kernels/kernel_itl.hpp"
 #include "force_double_buffer_imp.h"
 #include "kernels/hip_kernels.h"
+#include "kernels/kernel_itl.hpp"
 #include "md_hip_config.h"
 
 ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
-                                           const unsigned int data_len, AtomElement *_ptr_atoms,
-                                           _cuAtomElement *_ptr_device_buf1, _cuAtomElement *_ptr_device_buf2,
-                                           tp_device_force *_d_forces, _hipDeviceDomain h_domain,
+                                           const unsigned int data_len, type_f_src_desc _ptr_atoms,
+                                           type_f_buffer_desc _ptr_device_buf1, type_f_buffer_desc _ptr_device_buf2,
+                                           type_f_fetch_desc *_d_forces, _hipDeviceDomain h_domain,
                                            const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius)
     : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
                           2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
@@ -38,10 +38,24 @@ void ForceDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   unsigned int data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
-  _cuAtomElement *d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
+  type_f_buffer_desc d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
   tp_device_force *force_ptr = d_forces + atoms_per_layer * (data_start_index + h_domain.ghost_size_z);
   // atoms number to be calculated in this block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
-  (itl_atoms_pair<tp_device_force, ModeForce>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
-      d_p, force_ptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
+  (itl_atoms_pair<tp_device_force,
+                  ModeForce>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
+      d_p.atoms, force_ptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
+}
+
+void ForceDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_f_buffer_desc dest_ptr,
+                                                   type_f_src_desc src_ptr, const std::size_t src_offset,
+                                                   std::size_t size) {
+  HIP_CHECK(
+      hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms, sizeof(_cuAtomElement) * size, hipMemcpyHostToDevice, stream));
+}
+void ForceDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_f_dest_desc dest_ptr,
+                                                   type_f_buffer_desc src_ptr, const std::size_t src_offset,
+                                                   const std::size_t des_offset, std::size_t size) {
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+                           hipMemcpyDeviceToHost, stream));
 }

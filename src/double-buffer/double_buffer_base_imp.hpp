@@ -8,7 +8,6 @@
 #include <iostream>
 
 #include "double_buffer.h"
-#include "hip_macros.h" // from hip_pot lib
 
 /**
  * double buffer with bass data types support.
@@ -32,11 +31,11 @@
  * DT).
  * The destination address of next block will skip {block items} * {size_per_block_item} elements.
  *
- * @tparam BT type of buffer data
- * @tparam ST type of source data
- * @tparam DT type of destination data
+ * @tparam BT type of buffer descriptor
+ * @tparam ST type of source data descriptor
+ * @tparam DT type of destination data descriptor
  */
-template <typename BT, typename ST, typename DT> class DoubleBufferBaseImp : public DoubleBuffer {
+template <typename BT, typename ST, typename DT, typename FT> class DoubleBufferBaseImp : public DoubleBuffer {
 public:
   /**
    * @param stream1 stream for buffer 1, which is used for syncing buffer 1.
@@ -57,8 +56,8 @@ public:
   DoubleBufferBaseImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
                       const unsigned int data_len, const unsigned int eles_per_block_item,
                       const unsigned int copy_ghost_size, const unsigned int fetch_ghost_size,
-                      const unsigned int fetch_offset, ST *h_ptr_src_data, DT *h_ptr_des_data, DT *d_ptr_fetch_base,
-                      BT *d_ptr_device_buf1, BT *d_ptr_device_buf2)
+                      const unsigned int fetch_offset, ST h_ptr_src_data, DT h_ptr_des_data, FT *d_ptr_fetch_base,
+                      BT d_ptr_device_buf1, BT d_ptr_device_buf2)
       : DoubleBuffer(stream1, stream2, blocks, data_len), eles_per_block_item(eles_per_block_item),
         copy_ghost_size(copy_ghost_size), fetch_ghost_size(fetch_ghost_size), fetch_offset(fetch_offset),
         h_ptr_src_data(h_ptr_src_data), h_ptr_des_data(h_ptr_des_data), d_ptr_fetch_base(d_ptr_fetch_base),
@@ -75,9 +74,10 @@ public:
   void fillBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
                   const unsigned int data_end_index, const int block_id) override {
     const std::size_t size = eles_per_block_item * (data_end_index - data_start_index) + copy_ghost_size;
-    ST *h_p = h_ptr_src_data + eles_per_block_item * data_start_index;
-    BT *d_p = left ? d_ptr_device_buf1 : d_ptr_device_buf2;
-    HIP_CHECK(hipMemcpyAsync(d_p, h_p, sizeof(ST) * size, hipMemcpyHostToDevice, stream));
+    // ST *h_p = h_ptr_src_data + eles_per_block_item * data_start_index;
+    BT d_p = left ? d_ptr_device_buf1 : d_ptr_device_buf2;
+    const std::size_t src_offset = eles_per_block_item * data_start_index;
+    copyFromHostToDeviceBuf(stream, d_p, h_ptr_src_data, src_offset, size);
   }
 
   /**
@@ -91,13 +91,16 @@ public:
   void fetchBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
                    const unsigned int data_end_index, const int block_id) override {
     const std::size_t size = eles_per_block_item * (data_end_index - data_start_index) + fetch_ghost_size;
-    DT *h_p = h_ptr_des_data + eles_per_block_item * data_start_index + fetch_offset;
+    // DT *host_p = h_ptr_des_data + eles_per_block_item * data_start_index + fetch_offset;
     if (d_ptr_fetch_base == nullptr) {
-      BT *d_p = (left ? d_ptr_device_buf1 : d_ptr_device_buf2) + fetch_offset;
-      HIP_CHECK(hipMemcpyAsync(h_p, d_p, sizeof(DT) * size, hipMemcpyDeviceToHost, stream))
+      BT dev_p = (left ? d_ptr_device_buf1 : d_ptr_device_buf2);
+      const std::size_t src_offset = fetch_offset;
+      const std::size_t des_offset = eles_per_block_item * data_start_index + fetch_offset;
+      copyFromDeviceBufToHost(stream, h_ptr_des_data, dev_p, src_offset, des_offset, size);
     } else {
-      DT *d_p = d_ptr_fetch_base + eles_per_block_item * data_start_index + fetch_offset;
-      HIP_CHECK(hipMemcpyAsync(h_p, d_p, sizeof(DT) * size, hipMemcpyDeviceToHost, stream))
+      //      const std::size_t des_offset = eles_per_block_item * data_start_index + fetch_offset;
+      //      FT *dev_p = d_ptr_fetch_base + des_offset; // fixme:
+      //      copyFromDeviceBufToHost(stream, h_ptr_des_data, dev_p, des_offset, size);
     }
   }
 
@@ -112,11 +115,32 @@ protected:
   const unsigned int fetch_offset;
   // source data array.
   // In MD, it can be lattice atoms in current MPI process (including ghost regions).
-  ST *h_ptr_src_data = nullptr;
-  BT *d_ptr_device_buf1 = nullptr, *d_ptr_device_buf2 = nullptr;
-  DT *h_ptr_des_data = nullptr;
+  ST h_ptr_src_data;
+  BT d_ptr_device_buf1, d_ptr_device_buf2;
+  DT h_ptr_des_data;
   // device address for fetching results from.
-  DT *d_ptr_fetch_base = nullptr;
+  FT *d_ptr_fetch_base;
+
+protected:
+  /**
+   * copy data from source (on host side) to device buffer.
+   * @param stream hip stream.
+   * @param dest_ptr destination buffer on device side.
+   * @param src_ptr source data on host side.
+   * @param size the size to be copied.
+   */
+  virtual void copyFromHostToDeviceBuf(hipStream_t &stream, BT dest_ptr, ST src_ptr, const std::size_t src_offset,
+                                       std::size_t size) = 0;
+
+  /**
+   * Copy data from device side to host side.
+   * @param stream hip stream refrence.
+   * @param dest_ptr
+   * @param src_ptr
+   * @param size
+   */
+  virtual void copyFromDeviceBufToHost(hipStream_t &stream, DT dest_ptr, BT src_ptr, const std::size_t src_offset,
+                                       const std::size_t des_offset, std::size_t size) = 0;
 };
 
 #endif // MISA_MD_HIP_DOUBLE_BUFFER_BASE_IMP_HPP

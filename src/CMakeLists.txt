@@ -34,8 +34,9 @@ target_link_libraries(md_arch_hip_normal PUBLIC md)
 
 ## set hip side source files.
 set(MD_HIP_ARCH_HEADER_FILES
-        hip_kernels.h
+        kernels/hip_kernels.h
         kernel_wrapper.h
+        memory/device_atoms.h
         )
 
 set(MD_HIP_ARCH_SOURCE_FILES
@@ -47,6 +48,7 @@ set(MD_HIP_ARCH_SOURCE_FILES
         hip_arch_acc_imp.cpp
         kernels/hip_kernels.hip.cpp
         kernel_wrapper.hip.cpp
+        memory/device_atoms.cpp
         mem.cpp
         )
 

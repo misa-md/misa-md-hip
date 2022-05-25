@@ -3,11 +3,12 @@
 //
 
 #include "df_double_buffer_imp.h"
+#include "hip_macros.h" // from hip_pot lib
 
 DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
-                                     const unsigned int data_len, AtomElement *_ptr_atoms,
-                                     _cuAtomElement *_ptr_device_buf1, _cuAtomElement *_ptr_device_buf2,
-                                     tp_device_rho *_d_dfs, _hipDeviceDomain h_domain)
+                                     const unsigned int data_len, type_df_src_desc _ptr_atoms,
+                                     type_df_buffer_desc _ptr_device_buf1, type_df_buffer_desc _ptr_device_buf2,
+                                     type_df_fetch_desc *_d_dfs, _hipDeviceDomain h_domain)
     : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
                           2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
                           h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, _ptr_atoms, _ptr_atoms,
@@ -29,10 +30,24 @@ void DfDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   unsigned int data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
-  _cuAtomElement *d_p = block_id % 2 == 0 ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
-  tp_device_rho *df_ptr = d_dfs + atoms_per_layer * (data_start_index + h_domain.ghost_size_z);
+  type_df_buffer_desc d_p = block_id % 2 == 0 ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
+  tp_device_df *df_ptr = d_dfs + atoms_per_layer * (data_start_index + h_domain.ghost_size_z);
   // atoms number to be calculated in this data block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
-  calDf<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(d_p, data_start_index,
+  calDf<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(d_p.atoms, data_start_index,
                                                                                     data_end_index);
+}
+
+void DfDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_df_buffer_desc dest_ptr,
+                                                type_df_src_desc src_ptr, const std::size_t src_offset,
+                                                std::size_t size) {
+  HIP_CHECK(
+      hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms, sizeof(_cuAtomElement) * size, hipMemcpyHostToDevice, stream));
+}
+
+void DfDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_df_dest_desc dest_ptr,
+                                                type_df_buffer_desc src_ptr, const std::size_t src_offset,
+                                                const std::size_t des_offset, std::size_t size) {
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+                           hipMemcpyDeviceToHost, stream));
 }

@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include "types/pre_define.h"
+#include "arch/arch_atom_list_collection.h"
 
 #define HIP_DIMENSION 3
 
@@ -24,6 +25,7 @@ typedef struct {
 } Vec3;
 
 typedef double tp_device_rho;
+typedef double tp_device_df;
 typedef Vec3 tp_device_force;
 typedef _type_atom_index _type_atom_index_kernel;
 
@@ -59,5 +61,7 @@ typedef struct {
   NeiOffset *nei_odd;
   NeiOffset *nei_even;
 } _hipDeviceNeiOffsets;
+
+typedef _type_atom_list_collection _type_dev_atom_list_collection;
 
 #endif // MISA_MD_HIP_KERNEL_TYPES_H
