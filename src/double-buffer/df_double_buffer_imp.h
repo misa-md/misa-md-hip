@@ -17,13 +17,12 @@
 typedef device_atoms::_type_buffer_desc type_df_buffer_desc;
 typedef _type_atom_list_collection type_df_src_desc;
 typedef _type_atom_list_collection type_df_dest_desc;
-typedef tp_device_df type_df_fetch_desc;
 
 /**
  * double buffer implementation for calculating derivative of embedded energy: df.
  */
 class DfDoubleBufferImp
-    : public DoubleBufferBaseImp<type_df_buffer_desc, type_df_src_desc, type_df_dest_desc, type_df_fetch_desc> {
+    : public DoubleBufferBaseImp<type_df_buffer_desc, type_df_src_desc, type_df_dest_desc> {
 public:
   /**
    * All parameters are the same as rho calculation.
@@ -37,7 +36,7 @@ public:
    */
   DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len,
                     type_df_src_desc _ptr_atoms, type_df_buffer_desc _ptr_device_buf1,
-                    type_df_buffer_desc _ptr_device_buf2, type_df_fetch_desc *_d_dfs, _hipDeviceDomain h_domain);
+                    type_df_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain);
 
   /**
    * implementation of performing calculation for the specific data block.
@@ -49,7 +48,6 @@ public:
 private:
   // lattice atoms array in current MPI process (including ghost regions)
   type_df_src_desc ptr_atoms;
-  type_df_fetch_desc *d_dfs = nullptr;
   const _hipDeviceDomain h_domain;
   const _type_atom_count atoms_per_layer; // atoms in each layer at z dimension.
   dim3 kernel_config_block_dim;

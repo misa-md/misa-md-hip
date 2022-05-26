@@ -17,13 +17,12 @@
 typedef device_atoms::_type_buffer_desc type_rho_buffer_desc;
 typedef _type_atom_list_collection type_rho_src_desc;
 typedef _type_atom_list_collection type_rho_dest_desc;
-typedef tp_device_rho type_rho_fetch_desc;
 
 /**
  * double buffer implementation for calculating electron density rho.
  */
 class RhoDoubleBufferImp
-    : public DoubleBufferBaseImp<type_rho_buffer_desc, type_rho_src_desc, type_rho_dest_desc, type_rho_fetch_desc> {
+    : public DoubleBufferBaseImp<type_rho_buffer_desc, type_rho_src_desc, type_rho_dest_desc> {
 public:
   /**
    * @param stream1 stream for buffer 1, which is used for syncing buffer 1.
@@ -38,7 +37,7 @@ public:
    */
   RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len,
                      type_rho_src_desc _ptr_atoms, type_rho_buffer_desc _ptr_device_buf1,
-                     type_rho_buffer_desc _ptr_device_buf2, type_rho_fetch_desc *_d_rhos, _hipDeviceDomain h_domain,
+                     type_rho_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
                      const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
 
   /**
@@ -51,7 +50,6 @@ public:
 private:
   // lattice atoms array in current MPI process (including ghost regions)
   type_rho_src_desc ptr_atoms;
-  type_rho_fetch_desc *d_rhos = nullptr;
 
   const _hipDeviceDomain h_domain;
   const _hipDeviceNeiOffsets d_nei_offset; // fixme: remove it

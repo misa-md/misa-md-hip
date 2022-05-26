@@ -185,8 +185,8 @@ void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff
   }
   allocDeviceAtomsIfNull();
   RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, _atoms,
-                                       device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2,
-                                       device_atoms::d_rhos, h_domain, d_nei_offset, cutoff_radius);
+                                       device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain,
+                                       d_nei_offset, cutoff_radius);
   rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
@@ -203,10 +203,8 @@ void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  // todo: d_df pinter
   DfDoubleBufferImp df_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, _atoms,
-                                     device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, device_atoms::d_rhos,
-                                     h_domain);
+                                     device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain);
   df_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
@@ -220,8 +218,8 @@ void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cuto
   }
   allocDeviceAtomsIfNull();
   ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, _atoms,
-                                           device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2,
-                                           device_atoms::d_forces, h_domain, d_nei_offset, cutoff_radius);
+                                           device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain,
+                                           d_nei_offset, cutoff_radius);
   force_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);

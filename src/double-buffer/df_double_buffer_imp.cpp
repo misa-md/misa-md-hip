@@ -8,12 +8,12 @@
 DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
                                      const unsigned int data_len, type_df_src_desc _ptr_atoms,
                                      type_df_buffer_desc _ptr_device_buf1, type_df_buffer_desc _ptr_device_buf2,
-                                     type_df_fetch_desc *_d_dfs, _hipDeviceDomain h_domain)
+                                     _hipDeviceDomain h_domain)
     : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
                           2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
                           h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, _ptr_atoms, _ptr_atoms,
-                          nullptr, _ptr_device_buf1, _ptr_device_buf2),
-      ptr_atoms(_ptr_atoms), d_dfs(_d_dfs), h_domain(h_domain),
+                          _ptr_device_buf1, _ptr_device_buf2),
+      ptr_atoms(_ptr_atoms), h_domain(h_domain),
       atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
 
   constexpr int threads_per_block = 256;
@@ -31,7 +31,6 @@ void DfDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
   type_df_buffer_desc d_p = block_id % 2 == 0 ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
-  tp_device_df *df_ptr = d_dfs + atoms_per_layer * (data_start_index + h_domain.ghost_size_z);
   // atoms number to be calculated in this data block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
   calDf<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(d_p.atoms, data_start_index,

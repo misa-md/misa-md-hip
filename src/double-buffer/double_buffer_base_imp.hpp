@@ -35,7 +35,7 @@
  * @tparam ST type of source data descriptor
  * @tparam DT type of destination data descriptor
  */
-template <typename BT, typename ST, typename DT, typename FT> class DoubleBufferBaseImp : public DoubleBuffer {
+template <typename BT, typename ST, typename DT> class DoubleBufferBaseImp : public DoubleBuffer {
 public:
   /**
    * @param stream1 stream for buffer 1, which is used for syncing buffer 1.
@@ -48,20 +48,18 @@ public:
    * @param fetch_offset offset size applied to both device and host address when fetching.
    * @param h_ptr_src_data the source data pointer on host side.
    * @param h_ptr_des_data the destination data pointer on host side for fetching results on device side.
-   * @param d_ptr_fetch_base specific the device base address when fetching results from host to host.
-   *   It will fetch data from buffer1 or buffer2 if @param d_fetch_ptr is set to nullptr.
    * @param d_ptr_device_buf1, d_ptr_device_buf2 two data buffers memory on device side.
    *  In double buffer scheduler, it will copy data from  @param _ptr_src_data to one of these buffers.
    */
   DoubleBufferBaseImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
                       const unsigned int data_len, const unsigned int eles_per_block_item,
                       const unsigned int copy_ghost_size, const unsigned int fetch_ghost_size,
-                      const unsigned int fetch_offset, ST h_ptr_src_data, DT h_ptr_des_data, FT *d_ptr_fetch_base,
-                      BT d_ptr_device_buf1, BT d_ptr_device_buf2)
+                      const unsigned int fetch_offset, ST h_ptr_src_data, DT h_ptr_des_data, BT d_ptr_device_buf1,
+                      BT d_ptr_device_buf2)
       : DoubleBuffer(stream1, stream2, blocks, data_len), eles_per_block_item(eles_per_block_item),
         copy_ghost_size(copy_ghost_size), fetch_ghost_size(fetch_ghost_size), fetch_offset(fetch_offset),
-        h_ptr_src_data(h_ptr_src_data), h_ptr_des_data(h_ptr_des_data), d_ptr_fetch_base(d_ptr_fetch_base),
-        d_ptr_device_buf1(d_ptr_device_buf1), d_ptr_device_buf2(d_ptr_device_buf2){};
+        h_ptr_src_data(h_ptr_src_data), h_ptr_des_data(h_ptr_des_data), d_ptr_device_buf1(d_ptr_device_buf1),
+        d_ptr_device_buf2(d_ptr_device_buf2){};
 
   /**
    * implementation of copying data into device buffer
@@ -91,17 +89,11 @@ public:
   void fetchBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
                    const unsigned int data_end_index, const int block_id) override {
     const std::size_t size = eles_per_block_item * (data_end_index - data_start_index) + fetch_ghost_size;
-    // DT *host_p = h_ptr_des_data + eles_per_block_item * data_start_index + fetch_offset;
-    if (d_ptr_fetch_base == nullptr) {
-      BT dev_p = (left ? d_ptr_device_buf1 : d_ptr_device_buf2);
-      const std::size_t src_offset = fetch_offset;
-      const std::size_t des_offset = eles_per_block_item * data_start_index + fetch_offset;
-      copyFromDeviceBufToHost(stream, h_ptr_des_data, dev_p, src_offset, des_offset, size);
-    } else {
-      //      const std::size_t des_offset = eles_per_block_item * data_start_index + fetch_offset;
-      //      FT *dev_p = d_ptr_fetch_base + des_offset; // fixme:
-      //      copyFromDeviceBufToHost(stream, h_ptr_des_data, dev_p, des_offset, size);
-    }
+
+    BT dev_p = (left ? d_ptr_device_buf1 : d_ptr_device_buf2);
+    const std::size_t src_offset = fetch_offset;
+    const std::size_t des_offset = eles_per_block_item * data_start_index + fetch_offset;
+    copyFromDeviceBufToHost(stream, h_ptr_des_data, dev_p, src_offset, des_offset, size);
   }
 
 protected:
@@ -113,13 +105,13 @@ protected:
   const unsigned int fetch_ghost_size;
   // offset size applied to both device and host address when fetching.
   const unsigned int fetch_offset;
-  // source data array.
-  // In MD, it can be lattice atoms in current MPI process (including ghost regions).
-  ST h_ptr_src_data;
+  /**
+   * source data array.
+   * In MD, it can be lattice atoms in current MPI process (including ghost regions).
+   **/
+  ST h_ptr_src_data; // host address for coping results from.
   BT d_ptr_device_buf1, d_ptr_device_buf2;
-  DT h_ptr_des_data;
-  // device address for fetching results from.
-  FT *d_ptr_fetch_base;
+  DT h_ptr_des_data; // host address for fetching results to.
 
 protected:
   /**
