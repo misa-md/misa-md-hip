@@ -5,16 +5,14 @@
 #include "df_double_buffer_imp.h"
 #include "hip_macros.h" // from hip_pot lib
 
-DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
-                                     const unsigned int data_len, type_df_src_desc _ptr_atoms,
-                                     type_df_buffer_desc _ptr_device_buf1, type_df_buffer_desc _ptr_device_buf2,
-                                     _hipDeviceDomain h_domain)
-    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
+DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
+                                     type_df_src_desc _ptr_atoms, type_df_buffer_desc _ptr_device_buf1,
+                                     type_df_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain)
+    : DoubleBufferBaseImp(stream1, stream2, data_desc,
                           2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
                           h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, _ptr_atoms, _ptr_atoms,
                           _ptr_device_buf1, _ptr_device_buf2),
-      ptr_atoms(_ptr_atoms), h_domain(h_domain),
-      atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
+      ptr_atoms(_ptr_atoms), h_domain(h_domain), atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
 
   constexpr int threads_per_block = 256;
   this->kernel_config_block_dim = dim3(threads_per_block);

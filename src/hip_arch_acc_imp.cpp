@@ -184,9 +184,13 @@ void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, _atoms,
-                                       device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain,
-                                       d_nei_offset, cutoff_radius);
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, _atoms, device_atoms::d_atoms_buffer1,
+                                       device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
   rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
@@ -203,8 +207,13 @@ void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, _atoms,
-                                     device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain);
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], data_desc, _atoms, device_atoms::d_atoms_buffer1,
+                                     device_atoms::d_atoms_buffer2, h_domain);
   df_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
@@ -217,9 +226,13 @@ void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cuto
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, _atoms,
-                                           device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain,
-                                           d_nei_offset, cutoff_radius);
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, _atoms, device_atoms::d_atoms_buffer1,
+                                           device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
   force_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);

@@ -20,8 +20,8 @@ typedef _type_atom_list_collection type_f_dest_desc;
 
 class ForceDoubleBufferImp : public DoubleBufferBaseImp<type_f_buffer_desc, type_f_src_desc, type_f_dest_desc> {
 public:
-  ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
-                       const unsigned int data_len, type_f_src_desc _ptr_atoms, type_f_buffer_desc _ptr_device_buf1,
+  ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
+                       type_f_src_desc _ptr_atoms, type_f_buffer_desc _ptr_device_buf1,
                        type_f_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
                        const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
 

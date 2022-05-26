@@ -13,17 +13,16 @@
 #include "md_hip_config.h"
 #include "rho_double_buffer_imp.h"
 
-RhoDoubleBufferImp::RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
-                                       const unsigned int data_len, type_rho_src_desc _ptr_atoms,
-                                       type_rho_buffer_desc _ptr_device_buf1, type_rho_buffer_desc _ptr_device_buf2,
-                                       _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset,
-                                       const double cutoff_radius)
-    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
+RhoDoubleBufferImp::RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
+                                       type_rho_src_desc _ptr_atoms, type_rho_buffer_desc _ptr_device_buf1,
+                                       type_rho_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
+                                       const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius)
+    : DoubleBufferBaseImp(stream1, stream2, data_desc,
                           2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
                           h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, _ptr_atoms, _ptr_atoms,
                           _ptr_device_buf1, _ptr_device_buf2),
-      ptr_atoms(_ptr_atoms), h_domain(h_domain), d_nei_offset(d_nei_offset),
-      cutoff_radius(cutoff_radius), atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
+      ptr_atoms(_ptr_atoms), h_domain(h_domain), d_nei_offset(d_nei_offset), cutoff_radius(cutoff_radius),
+      atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
 
   constexpr int threads_per_block = 256;
   this->kernel_config_block_dim = dim3(threads_per_block);

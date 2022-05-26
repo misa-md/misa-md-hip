@@ -13,12 +13,12 @@
 #include "kernels/kernel_itl.hpp"
 #include "md_hip_config.h"
 
-ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks,
-                                           const unsigned int data_len, type_f_src_desc _ptr_atoms,
+ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2,
+                                           const db_buffer_data_desc data_desc, type_f_src_desc _ptr_atoms,
                                            type_f_buffer_desc _ptr_device_buf1, type_f_buffer_desc _ptr_device_buf2,
                                            _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset,
                                            const double cutoff_radius)
-    : DoubleBufferBaseImp(stream1, stream2, blocks, data_len, h_domain.ext_size_y * h_domain.ext_size_x,
+    : DoubleBufferBaseImp(stream1, stream2, data_desc,
                           2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
                           h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, _ptr_atoms, _ptr_atoms,
                           _ptr_device_buf1, _ptr_device_buf2),

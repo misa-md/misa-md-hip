@@ -21,21 +21,19 @@ typedef _type_atom_list_collection type_rho_dest_desc;
 /**
  * double buffer implementation for calculating electron density rho.
  */
-class RhoDoubleBufferImp
-    : public DoubleBufferBaseImp<type_rho_buffer_desc, type_rho_src_desc, type_rho_dest_desc> {
+class RhoDoubleBufferImp : public DoubleBufferBaseImp<type_rho_buffer_desc, type_rho_src_desc, type_rho_dest_desc> {
 public:
   /**
    * @param stream1 stream for buffer 1, which is used for syncing buffer 1.
    * @param stream2 stream for buffer 2, which is used for syncing buffer 2.
-   * @param blocks total data blocks
-   * @param data_len total data length in all data blocks
+   * @param data_desc the descriptor of source data
    * @param _ptr_atoms atoms pointer descriptor on host side
    * @param _ptr_device_buf1, _ptr_device_buf2 two atom buffers descriptor memory on device side.
    * @param h_domain domain information
    * @param d_nei_offset neighbor offset data
    * @param cutoff_radius cutoff
    */
-  RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len,
+  RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
                      type_rho_src_desc _ptr_atoms, type_rho_buffer_desc _ptr_device_buf1,
                      type_rho_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
                      const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);

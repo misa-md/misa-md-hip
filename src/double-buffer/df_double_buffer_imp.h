@@ -21,20 +21,18 @@ typedef _type_atom_list_collection type_df_dest_desc;
 /**
  * double buffer implementation for calculating derivative of embedded energy: df.
  */
-class DfDoubleBufferImp
-    : public DoubleBufferBaseImp<type_df_buffer_desc, type_df_src_desc, type_df_dest_desc> {
+class DfDoubleBufferImp : public DoubleBufferBaseImp<type_df_buffer_desc, type_df_src_desc, type_df_dest_desc> {
 public:
   /**
    * All parameters are the same as rho calculation.
    * @param stream1,stream2 2 hip streams used for syncing buffer 1 and buffer 2 (e.g. data copying).
    * @param blocks total blocks for double buffer.
-   * @param data_len total z-layers of atoms on current processor (not include ghost regions).
-   * @param _ptr_atoms atoms data descriptor in host side.
+   * @param data_desc descriptor of the source data.
    * @param _ptr_device_buf1, _ptr_device_buf2 2 buffer memory descriptor on device side
    * @param _d_dfs the results data descriptor on device side (calculating results will writ to this array).
    * @param h_domain domain information
    */
-  DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len,
+  DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
                     type_df_src_desc _ptr_atoms, type_df_buffer_desc _ptr_device_buf1,
                     type_df_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain);
 
