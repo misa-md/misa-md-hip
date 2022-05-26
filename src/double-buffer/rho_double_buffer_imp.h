@@ -27,16 +27,19 @@ public:
    * @param stream1 stream for buffer 1, which is used for syncing buffer 1.
    * @param stream2 stream for buffer 2, which is used for syncing buffer 2.
    * @param data_desc the descriptor of source data
-   * @param _ptr_atoms atoms pointer descriptor on host side
+   * @param src_atoms_desc the host side atoms descriptor when transferring atoms data from host side to device side.
+   *    For AoS memory layout, it can be the lattice atoms array in current MPI process (including ghost regions).
+   * @param dest_atoms_desc the host side atoms descriptor when transferring atoms data from device side to host side.
+   *    For AoS memory layout, it can keep the same as @param src_atoms_desc.
    * @param _ptr_device_buf1, _ptr_device_buf2 two atom buffers descriptor memory on device side.
    * @param h_domain domain information
    * @param d_nei_offset neighbor offset data
    * @param cutoff_radius cutoff
    */
   RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
-                     type_rho_src_desc _ptr_atoms, type_rho_buffer_desc _ptr_device_buf1,
-                     type_rho_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
-                     const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
+                     type_rho_src_desc src_atoms_desc, type_rho_dest_desc dest_atoms_desc,
+                     type_rho_buffer_desc _ptr_device_buf1, type_rho_buffer_desc _ptr_device_buf2,
+                     _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
 
   /**
    * implementation of performing calculation for the specific data block.
@@ -46,9 +49,6 @@ public:
   void calcAsync(hipStream_t &stream, const int block_id) override;
 
 private:
-  // lattice atoms array in current MPI process (including ghost regions)
-  type_rho_src_desc ptr_atoms;
-
   const _hipDeviceDomain h_domain;
   const _hipDeviceNeiOffsets d_nei_offset; // fixme: remove it
   const double cutoff_radius;

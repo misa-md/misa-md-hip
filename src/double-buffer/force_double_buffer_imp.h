@@ -20,17 +20,30 @@ typedef _type_atom_list_collection type_f_dest_desc;
 
 class ForceDoubleBufferImp : public DoubleBufferBaseImp<type_f_buffer_desc, type_f_src_desc, type_f_dest_desc> {
 public:
+  /**
+   * double buffer implementation for force calculation.
+   * @param stream1 Hip stream for buffer 1
+   * @param stream2  Hip stream for buffer 2
+   * @param data_desc source data descriptor as an input for calculation.
+   * @param src_atoms_desc source data descriptor where it copies from when coping data from host side to double buffer.
+   *   Under AoS memory layout, it can be the lattice atoms array in current MPI process (including ghost regions).
+   * @param dest_atoms_desc destination data descriptor where it fetches to when fetching data from device side double
+   * buffer to host side.
+   *  Under AoS memory layout, it may keep the same as @param src_atoms_desc.
+   * @param _ptr_device_buf1 buffer 1
+   * @param _ptr_device_buf2 buffer 2
+   * @param h_domain simulation domain
+   * @param d_nei_offset the neighbor offset array in our MD for searching neighbor atoms.
+   * @param cutoff_radius the cutoff radius.
+   */
   ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
-                       type_f_src_desc _ptr_atoms, type_f_buffer_desc _ptr_device_buf1,
-                       type_f_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
-                       const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
+                       type_f_src_desc src_atoms_desc, type_f_dest_desc dest_atoms_desc,
+                       type_f_buffer_desc _ptr_device_buf1, type_f_buffer_desc _ptr_device_buf2,
+                       _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
 
   void calcAsync(hipStream_t &stream, const int block_id) override;
 
 private:
-  // lattice atoms array in current MPI process (including ghost regions)
-  type_f_src_desc ptr_atoms;
-
   const _hipDeviceDomain h_domain;
   const _hipDeviceNeiOffsets d_nei_offset; // fixme: remove it
   const double cutoff_radius;

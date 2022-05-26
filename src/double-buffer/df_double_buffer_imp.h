@@ -28,13 +28,18 @@ public:
    * @param stream1,stream2 2 hip streams used for syncing buffer 1 and buffer 2 (e.g. data copying).
    * @param blocks total blocks for double buffer.
    * @param data_desc descriptor of the source data.
+   * @param src_atoms_desc source atoms (host side) descriptor when coping atoms data on host side to device side double
+   * buffer.
+   * @param dest_atoms_desc destination atoms (host side) descriptor when fetching atoms data on device side double
+   * buffer to host side.
    * @param _ptr_device_buf1, _ptr_device_buf2 2 buffer memory descriptor on device side
    * @param _d_dfs the results data descriptor on device side (calculating results will writ to this array).
    * @param h_domain domain information
    */
   DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
-                    type_df_src_desc _ptr_atoms, type_df_buffer_desc _ptr_device_buf1,
-                    type_df_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain);
+                    type_df_src_desc src_atoms_desc, type_df_dest_desc dest_atoms_desc,
+                    type_df_buffer_desc _ptr_device_buf1, type_df_buffer_desc _ptr_device_buf2,
+                    _hipDeviceDomain h_domain);
 
   /**
    * implementation of performing calculation for the specific data block.
