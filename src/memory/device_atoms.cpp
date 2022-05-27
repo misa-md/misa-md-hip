@@ -11,11 +11,8 @@
 
 namespace device_atoms {
   bool db_buf_created = false;
-  _type_atom_list_collection d_atoms = {.atoms = nullptr}; // deprecated
   _type_buffer_desc d_atoms_buffer1 = {.atoms = nullptr};
   _type_buffer_desc d_atoms_buffer2 = {.atoms = nullptr};
-  tp_device_rho *d_rhos = nullptr;     // deprecated
-  tp_device_force *d_forces = nullptr; // deprecated
 } // namespace device_atoms
 
 void device_atoms::try_malloc_double_buffers(const _type_atom_count atoms_per_layer,

@@ -21,13 +21,6 @@
 #define THREADS_PER_BLOCK_Y 4
 #define THREADS_PER_BLOCK_Z 16
 
-//#define CUDA_ASSERT(x) (assert((x)==hipSuccess))
-
-_cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
-_cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
-tp_device_rho *d_rhos = nullptr;
-tp_device_force *d_forces = nullptr;
-
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;
@@ -158,10 +151,6 @@ void hip_pot_init(eam *_pot) {
 
 // allocate memory for storage atoms information in device side if d_atoms is nullptr.
 void allocDeviceAtomsIfNull() {
-  if (device_atoms::d_atoms.atoms == nullptr) {
-    const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-    HIP_CHECK(hipMalloc((void **)&device_atoms::d_atoms, sizeof(AtomElement) * size)); // fixme: GPU存得下么
-  }
 
   // create double buffers.
   const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
@@ -169,13 +158,6 @@ void allocDeviceAtomsIfNull() {
       ((h_domain.box_size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
   device_atoms::try_malloc_double_buffers(atoms_per_layer, max_block_atom_size);
 
-  if (device_atoms::d_rhos == nullptr) {
-    const _type_atom_count size_ = h_domain.ext_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
-    HIP_CHECK(hipMalloc(&device_atoms::d_rhos, size_ * sizeof(tp_device_rho)))
-    HIP_CHECK(hipMemset(device_atoms::d_rhos, 0, size_ * sizeof(tp_device_rho)))
-    HIP_CHECK(hipMalloc(&device_atoms::d_forces, size_ * sizeof(tp_device_force)))
-    HIP_CHECK(hipMemset(device_atoms::d_forces, 0, size_ * sizeof(tp_device_force)))
-  }
 }
 
 void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {

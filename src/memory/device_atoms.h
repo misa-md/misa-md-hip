@@ -16,12 +16,6 @@ namespace device_atoms {
 
   typedef _type_dev_buffer _type_buffer_desc; // buffer descriptor with data pointer in it.
 
-  /**
-   *
-   * atoms data on GPU side
-   * note: d_atoms on stored on host side, but d_atoms.atoms is stored on device side.
-   */
-  extern _type_atom_list_collection d_atoms;
 
   /**
    * Buffers for performing double buffer calculation.
@@ -30,16 +24,6 @@ namespace device_atoms {
    */
   extern _type_buffer_desc d_atoms_buffer1; // = {.atoms = nullptr};
   extern _type_buffer_desc d_atoms_buffer2; // = {.atoms = nullptr};
-
-  /**
-   * rho array on device side.
-   */
-  extern tp_device_rho *d_rhos;
-
-  /**
-   * force array on device side.
-   */
-  extern tp_device_force *d_forces;
 
   /**
    * If buffer array @var d_atoms_buffer1 and @var d_atoms_buffer2 is not allocated.
