@@ -48,7 +48,8 @@ set(MD_HIP_ARCH_SOURCE_FILES
         hip_arch_acc_imp.cpp
         kernels/hip_kernels.hip.cpp
         kernel_wrapper.hip.cpp
-        memory/device_atoms.cpp
+        memory/device_atoms_aos.cpp
+        memory/device_atoms_soa.cpp
         mem.cpp
         )
 

@@ -8,14 +8,31 @@
 #include "arch/arch_atom_list_collection.h"
 #include "kernel_types.h"
 
+#define HIP_DIMENSION 3
+
 // atoms data stored on device side.
 namespace device_atoms {
+  // double buffer for different memory layout.
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
   typedef struct {
     _cuAtomElement *atoms;
   } _type_dev_buffer;
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  typedef struct {
+    _type_atom_type_enum *types;
+    _type_atom_location (*x)[HIP_DIMENSION];
+    _type_atom_velocity (*v)[HIP_DIMENSION];
+    _type_atom_force (*f)[HIP_DIMENSION];
+    _type_atom_rho *rho;
+    _type_atom_df *df;
+  } _type_dev_buffer;
+#endif
 
+  /**
+   * For AoS memory layout, the kernel will write result to its input (input as output).
+   */
   typedef _type_dev_buffer _type_buffer_desc; // buffer descriptor with data pointer in it.
-
 
   /**
    * Buffers for performing double buffer calculation.
