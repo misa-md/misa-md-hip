@@ -15,8 +15,16 @@
 #include "memory/device_atoms.h"
 
 typedef device_atoms::_type_buffer_desc type_f_buffer_desc;
-typedef _type_atom_list_collection type_f_src_desc;
-typedef _type_atom_list_collection type_f_dest_desc;
+typedef device_atoms::_type_atom_list_desc type_f_src_desc;
+typedef device_atoms::_type_atom_list_desc type_f_dest_desc;
+
+typedef device_atoms::_type_dev_buffer_aos type_f_buffer_aos_desc;
+typedef device_atoms::_type_dev_buffer_soa type_f_buffer_soa_desc;
+
+typedef device_atoms::_type_atom_list_soa type_f_src_soa_desc;
+typedef device_atoms::_type_atom_list_aos type_f_src_aos_desc;
+typedef device_atoms::_type_atom_list_soa type_f_dest_soa_desc;
+typedef device_atoms::_type_atom_list_aos type_f_dest_aos_desc;
 
 class ForceDoubleBufferImp : public DoubleBufferBaseImp<type_f_buffer_desc, type_f_src_desc, type_f_dest_desc> {
 public:
@@ -56,6 +64,21 @@ private:
                                const std::size_t src_offset, std::size_t size) override;
   void copyFromDeviceBufToHost(hipStream_t &stream, type_f_dest_desc dest_ptr, type_f_buffer_desc src_ptr,
                                const std::size_t src_offset, const std::size_t des_offset, std::size_t size) override;
+
+private:
+  // copy atoms data from host side to device buffer, where the memory layout of the host atoms and buffer is AoS.
+  void copyHostToDevBuf_AoS(hipStream_t &stream, type_f_buffer_aos_desc dest_ptr, type_f_src_aos_desc src_ptr,
+                            const std::size_t src_offset, std::size_t size);
+  // similar as above, but the memory layout is SoA.
+  void copyHostToDevBuf_SoA(hipStream_t &stream, type_f_buffer_soa_desc dest_ptr, type_f_src_soa_desc src_ptr,
+                            const std::size_t src_offset, std::size_t size);
+
+  // copy atoms data from device buffer side to host side, where the memory layout of the host atoms and buffer is AoS.
+  void copyDevBufToHost_AoS(hipStream_t &stream, type_f_dest_aos_desc dest_ptr, type_f_buffer_aos_desc src_ptr,
+                            const std::size_t src_offset, const std::size_t des_offset, std::size_t size);
+  // similar as above, but the memory layout is SoA.
+  void copyDevBufToHost_SoA(hipStream_t &stream, type_f_dest_soa_desc dest_ptr, type_f_buffer_soa_desc src_ptr,
+                            const std::size_t src_offset, const std::size_t des_offset, std::size_t size);
 };
 
 #endif // MISA_MD_HIP_FORCE_DOUBLE_BUFFER_IMP_H

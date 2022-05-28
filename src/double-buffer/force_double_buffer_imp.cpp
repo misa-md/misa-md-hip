@@ -41,20 +41,64 @@ void ForceDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   type_f_buffer_desc d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
   // atoms number to be calculated in this block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
   (itl_atoms_pair<tp_device_force,
                   ModeForce>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
       d_p.atoms, nullptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
+#endif
+  // todo: SoA
 }
 
 void ForceDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_f_buffer_desc dest_ptr,
                                                    type_f_src_desc src_ptr, const std::size_t src_offset,
                                                    std::size_t size) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  copyHostToDevBuf_AoS(stream, dest_ptr, src_ptr, src_offset, size);
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  copyHostToDevBuf_SoA(stream, dest_ptr, src_ptr, src_offset, size);
+#endif
+}
+
+void ForceDoubleBufferImp::copyHostToDevBuf_AoS(hipStream_t &stream, type_f_buffer_aos_desc dest_ptr, type_f_src_aos_desc src_ptr,
+                          const std::size_t src_offset, std::size_t size) {
   HIP_CHECK(
       hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms, sizeof(_cuAtomElement) * size, hipMemcpyHostToDevice, stream));
 }
+
+void ForceDoubleBufferImp::copyHostToDevBuf_SoA(hipStream_t &stream, type_f_buffer_soa_desc dest_ptr, type_f_src_soa_desc src_ptr,
+                          const std::size_t src_offset, std::size_t size) {
+  // only copy type, x[3], rho, and df.
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.types, src_ptr.types, sizeof(_type_atom_type_enum) * size, hipMemcpyHostToDevice,
+                           stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
+                           hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho, src_ptr.rho, sizeof(_type_atom_rho) * size, hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.df, src_ptr.df, sizeof(_type_atom_df) * size, hipMemcpyHostToDevice, stream));
+  // memory set force
+  HIP_CHECK(hipMemsetAsync(dest_ptr.f, 0, sizeof(_type_atom_force[HIP_DIMENSION]) * size, stream));
+}
+
 void ForceDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_f_dest_desc dest_ptr,
                                                    type_f_buffer_desc src_ptr, const std::size_t src_offset,
                                                    const std::size_t des_offset, std::size_t size) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  copyDevBufToHost_AoS(stream, dest_ptr, src_ptr, src_offset, des_offset, size);
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  copyDevBufToHost_SoA(stream, dest_ptr, src_ptr, src_offset, des_offset, size);
+#endif
+}
+
+void ForceDoubleBufferImp::copyDevBufToHost_AoS(hipStream_t &stream, type_f_dest_aos_desc dest_ptr, type_f_buffer_aos_desc src_ptr,
+                          const std::size_t src_offset, const std::size_t des_offset, std::size_t size) {
   HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
                            hipMemcpyDeviceToHost, stream));
+}
+
+void ForceDoubleBufferImp::copyDevBufToHost_SoA(hipStream_t &stream, type_f_dest_soa_desc dest_ptr, type_f_buffer_soa_desc src_ptr,
+                          const std::size_t src_offset, const std::size_t des_offset, std::size_t size) {
+  // only copy force[3] back.
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.f + des_offset, src_ptr.f + src_offset,
+                           sizeof(_type_atom_force[HIP_DIMENSION]) * size, hipMemcpyDeviceToHost, stream));
 }

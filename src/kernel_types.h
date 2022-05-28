@@ -62,6 +62,5 @@ typedef struct {
   NeiOffset *nei_even;
 } _hipDeviceNeiOffsets;
 
-typedef _type_atom_list_collection _type_dev_atom_list_collection;
 
 #endif // MISA_MD_HIP_KERNEL_TYPES_H

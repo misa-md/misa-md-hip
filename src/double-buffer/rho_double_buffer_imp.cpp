@@ -45,20 +45,63 @@ void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
   type_rho_buffer_desc d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
   // atoms number to be calculated in this block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
   (itl_atoms_pair<tp_device_rho, ModeRho>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
       d_p.atoms, nullptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
+#endif
+  // todo: SoA
 }
 
 void RhoDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_rho_buffer_desc dest_ptr,
                                                  type_rho_src_desc src_ptr, const std::size_t src_offset,
                                                  std::size_t size) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  copyHostToDevBuf_AoS(stream, dest_ptr, src_ptr, src_offset, size);
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  copyHostToDevBuf_SoA(stream, dest_ptr, src_ptr, src_offset, size);
+#endif
+}
+
+void RhoDoubleBufferImp::copyHostToDevBuf_AoS(hipStream_t &stream, type_rho_buffer_aos_desc dest_ptr,
+                                              type_rho_src_aos_desc src_ptr, const std::size_t src_offset,
+                                              std::size_t size) {
   HIP_CHECK(
       hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms, sizeof(_cuAtomElement) * size, hipMemcpyHostToDevice, stream));
+}
+void RhoDoubleBufferImp::copyHostToDevBuf_SoA(hipStream_t &stream, type_rho_buffer_soa_desc dest_ptr,
+                                              type_rho_src_soa_desc src_ptr, const std::size_t src_offset,
+                                              std::size_t size) {
+  // copy types and x[3].
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.types, src_ptr.types, sizeof(_type_atom_type_enum) * size, hipMemcpyHostToDevice,
+                           stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
+                           hipMemcpyHostToDevice, stream));
+  // memory set force
+  HIP_CHECK(hipMemsetAsync(dest_ptr.rho, 0, sizeof(_type_atom_rho) * size, stream));
 }
 
 void RhoDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_rho_dest_desc dest_ptr,
                                                  type_rho_buffer_desc src_ptr, const std::size_t src_offset,
                                                  const std::size_t des_offset, std::size_t size) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  copyDevBufToHost_AoS(stream, dest_ptr, src_ptr, src_offset, des_offset, size);
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  copyDevBufToHost_SoA(stream, dest_ptr, src_ptr, src_offset, des_offset, size);
+#endif
+}
+
+void RhoDoubleBufferImp::copyDevBufToHost_AoS(hipStream_t &stream, type_rho_dest_aos_desc dest_ptr,
+                                              type_rho_buffer_aos_desc src_ptr, const std::size_t src_offset,
+                                              const std::size_t des_offset, std::size_t size) {
   HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+                           hipMemcpyDeviceToHost, stream));
+}
+void RhoDoubleBufferImp::copyDevBufToHost_SoA(hipStream_t &stream, type_rho_dest_soa_desc dest_ptr,
+                                              type_rho_buffer_soa_desc src_ptr, const std::size_t src_offset,
+                                              const std::size_t des_offset, std::size_t size) {
+  // copy rho back
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset, src_ptr.rho + src_offset, sizeof(_type_atom_rho) * size,
                            hipMemcpyDeviceToHost, stream));
 }

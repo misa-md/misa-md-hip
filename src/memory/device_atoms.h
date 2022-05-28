@@ -12,13 +12,12 @@
 
 // atoms data stored on device side.
 namespace device_atoms {
-  // double buffer for different memory layout.
-#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  // double buffer and atom list for AOS(array of struct) memory layout.
   typedef struct {
     _cuAtomElement *atoms;
-  } _type_dev_buffer;
-#endif
-#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  } _type_atom_list_aos;
+
+  // double buffer and atom list for SOA(struct of array) memory layout.
   typedef struct {
     _type_atom_type_enum *types;
     _type_atom_location (*x)[HIP_DIMENSION];
@@ -26,13 +25,37 @@ namespace device_atoms {
     _type_atom_force (*f)[HIP_DIMENSION];
     _type_atom_rho *rho;
     _type_atom_df *df;
-  } _type_dev_buffer;
-#endif
+  } _type_atom_list_soa;
+
+  typedef _type_atom_list_aos _type_dev_buffer_aos;
+  typedef _type_atom_list_soa _type_dev_buffer_soa;
 
   /**
    * For AoS memory layout, the kernel will write result to its input (input as output).
    */
-  typedef _type_dev_buffer _type_buffer_desc; // buffer descriptor with data pointer in it.
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  typedef _type_dev_buffer_aos _type_buffer_desc; // buffer descriptor with data pointer in it.
+  typedef _type_atom_list_aos _type_atom_list_desc;
+  inline _type_atom_list_desc fromAtomListColl(_type_atom_list_collection coll) {
+    return _type_atom_list_desc{.atoms = coll.atoms};
+  }
+#endif
+
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  typedef _type_dev_buffer_soa _type_buffer_desc;
+  typedef _type_atom_list_soa _type_atom_list_desc;
+  inline _type_atom_list_desc fromAtomListColl(_type_atom_list_collection coll) {
+    return _type_atom_list_desc{
+//        .id = coll.atom_ids,
+        .types = coll.atom_types,
+        .x = coll.atom_x,
+        .v = coll.atom_v,
+        .f = coll.atom_f,
+        .rho = coll.atom_rho,
+        .df = coll.atom_df,
+    };
+  }
+#endif
 
   /**
    * Buffers for performing double buffer calculation.

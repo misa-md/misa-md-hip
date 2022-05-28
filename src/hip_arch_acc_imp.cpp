@@ -171,7 +171,8 @@ void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff
       .data_len = h_domain.box_size_z,
       .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
   };
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, _atoms, _atoms, device_atoms::d_atoms_buffer1,
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                       device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
                                        device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
   rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
@@ -194,7 +195,8 @@ void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_
       .data_len = h_domain.box_size_z,
       .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
   };
-  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], data_desc, _atoms, _atoms, device_atoms::d_atoms_buffer1,
+  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                     device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
                                      device_atoms::d_atoms_buffer2, h_domain);
   df_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
@@ -213,9 +215,9 @@ void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cuto
       .data_len = h_domain.box_size_z,
       .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
   };
-  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, _atoms, _atoms,
-                                           device_atoms::d_atoms_buffer1, device_atoms::d_atoms_buffer2, h_domain,
-                                           d_nei_offset, cutoff_radius);
+  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                           device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                           device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
   force_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
