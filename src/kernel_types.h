@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include "types/pre_define.h"
+#include "arch/arch_atom_list_collection.h"
 
 #define HIP_DIMENSION 3
 
@@ -24,9 +25,16 @@ typedef struct {
 } Vec3;
 
 typedef double tp_device_rho;
+typedef double tp_device_df;
 typedef Vec3 tp_device_force;
 typedef _type_atom_index _type_atom_index_kernel;
 
+/**
+ * Just a copy of type `AtomElement`.
+ * We must make sure its size, member type and member order keeps the same as type AtomElement.
+ * This constraint condition guarantees the correctness when copying data from host side to device side
+ * under AoS memory layout.
+ */
 typedef struct {
   long id;                 // atom id.
   int type;                // atom type
@@ -59,5 +67,6 @@ typedef struct {
   NeiOffset *nei_odd;
   NeiOffset *nei_even;
 } _hipDeviceNeiOffsets;
+
 
 #endif // MISA_MD_HIP_KERNEL_TYPES_H

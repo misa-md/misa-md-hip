@@ -3,15 +3,16 @@
 #include <iostream>
 
 #include "arch/arch_imp.h"
-#include "kernels/hip_kernels.h"
 #include "hip_macros.h" // from hip_pot lib
 #include "hip_pot.h"
+#include "kernels/hip_kernels.h"
 
 #include "cli.h"
 #include "double-buffer/df_double_buffer_imp.h"
 #include "double-buffer/force_double_buffer_imp.h"
 #include "double-buffer/rho_double_buffer_imp.h"
 #include "global_ops.h"
+#include "memory/device_atoms.h"
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
 
@@ -19,13 +20,6 @@
 #define THREADS_PER_BLOCK_X 16
 #define THREADS_PER_BLOCK_Y 4
 #define THREADS_PER_BLOCK_Z 16
-
-//#define CUDA_ASSERT(x) (assert((x)==hipSuccess))
-
-_cuAtomElement *d_atoms = nullptr; // atoms data on GPU side
-_cuAtomElement *d_atoms_buffer1 = nullptr, *d_atoms_buffer2 = nullptr;
-tp_device_rho *d_rhos = nullptr;
-tp_device_force *d_forces = nullptr;
 
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
@@ -104,7 +98,7 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
   */
 }
 
-void hip_nei_offset_init(const NeighbourIndex<AtomElement> *nei_offset) {
+void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_offset) {
   // constValue_int[21] = neighbours->nei_half_odd_offsets.size();//114
   // constValue_int[22] = neighbours->nei_half_even_offsets.size();
 #ifndef USE_NEWTONS_THIRD_LOW
@@ -157,50 +151,36 @@ void hip_pot_init(eam *_pot) {
 
 // allocate memory for storage atoms information in device side if d_atoms is nullptr.
 void allocDeviceAtomsIfNull() {
-  if (d_atoms == nullptr) {
-    const _type_atom_count size = h_domain.ext_size_x * h_domain.ext_size_y * h_domain.ext_size_z;
-    HIP_CHECK(hipMalloc((void **)&d_atoms, sizeof(AtomElement) * size)); // fixme: GPU存得下么
-  }
 
-  // allocate 2 buffers
-  if (d_atoms_buffer1 == nullptr || d_atoms_buffer1 == nullptr) {
-    const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
-    const _type_atom_count max_block_atom_size =
-        ((h_domain.box_size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
-    if (d_atoms_buffer1 == nullptr) {
-      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer1, sizeof(AtomElement) * max_block_atom_size * batches_cli))
-    }
-    if (d_atoms_buffer2 == nullptr) {
-      HIP_CHECK(hipMalloc((void **)&d_atoms_buffer2, sizeof(AtomElement) * max_block_atom_size * batches_cli))
-    }
-  }
+  // create double buffers.
+  const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
+  const _type_atom_count max_block_atom_size = // fixme: buffer size
+      ((h_domain.box_size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
+  device_atoms::try_malloc_double_buffers(atoms_per_layer, max_block_atom_size);
 
-  if (d_rhos == nullptr) {
-    const _type_atom_count size_ = h_domain.ext_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
-    HIP_CHECK(hipMalloc(&d_rhos, size_ * sizeof(tp_device_rho)))
-    HIP_CHECK(hipMemset(d_rhos, 0, size_ * sizeof(tp_device_rho)))
-    HIP_CHECK(hipMalloc(&d_forces, size_ * sizeof(tp_device_force)))
-    HIP_CHECK(hipMemset(d_forces, 0, size_ * sizeof(tp_device_force)))
-  }
 }
 
 void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
-  AtomElement *atoms = _atoms.atoms;
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, atoms, d_atoms_buffer1,
-                                       d_atoms_buffer2, d_rhos, h_domain, d_nei_offset, cutoff_radius);
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                       device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                       device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
   rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
   }
 }
 
-void hip_eam_df_calc(eam *pot,  _type_atom_list_collection _atoms, double cutoff_radius) {
-  AtomElement *atoms = _atoms.atoms;
+void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
 #ifndef USE_NEWTONS_THIRD_LOW
   return;
 #endif
@@ -210,24 +190,34 @@ void hip_eam_df_calc(eam *pot,  _type_atom_list_collection _atoms, double cutoff
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, atoms, d_atoms_buffer1,
-                                     d_atoms_buffer2, d_rhos, h_domain);
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                     device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                     device_atoms::d_atoms_buffer2, h_domain);
   df_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
   }
 }
 
-void hip_eam_force_calc(eam *pot,  _type_atom_list_collection _atoms, double cutoff_radius) {
-  AtomElement *atoms = _atoms.atoms;
+void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));
   }
   allocDeviceAtomsIfNull();
-  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], batches_cli, h_domain.box_size_z, atoms,
-                                           d_atoms_buffer1, d_atoms_buffer2, d_forces, h_domain, d_nei_offset,
-                                           cutoff_radius);
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                           device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                           device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
   force_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
