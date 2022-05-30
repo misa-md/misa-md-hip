@@ -36,6 +36,7 @@ void DoubleBuffer::schedule() {
   // fetch data from buffer 2 or buffer 1, if necessary
   waitCalc(blocks - 1);
   fetchBufferWrapper(blocks - 1);
+  waitComm(blocks - 1); // wait data copying to finish.
 }
 
 void DoubleBuffer::getCurrentDataRange(const unsigned int block_i, unsigned int &index_start, unsigned int &index_end) {
