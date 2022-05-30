@@ -98,7 +98,7 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
   */
 }
 
-void hip_nei_offset_init(const NeighbourIndex<AtomElement> *nei_offset) {
+void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_offset) {
   // constValue_int[21] = neighbours->nei_half_odd_offsets.size();//114
   // constValue_int[22] = neighbours->nei_half_even_offsets.size();
 #ifndef USE_NEWTONS_THIRD_LOW
