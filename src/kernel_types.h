@@ -29,6 +29,12 @@ typedef double tp_device_df;
 typedef Vec3 tp_device_force;
 typedef _type_atom_index _type_atom_index_kernel;
 
+/**
+ * Just a copy of type `AtomElement`.
+ * We must make sure its size, member type and member order keeps the same as type AtomElement.
+ * This constraint condition guarantees the correctness when copying data from host side to device side
+ * under AoS memory layout.
+ */
 typedef struct {
   long id;                 // atom id.
   int type;                // atom type
