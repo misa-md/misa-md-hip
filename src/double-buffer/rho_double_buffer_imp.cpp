@@ -23,19 +23,8 @@ RhoDoubleBufferImp::RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream
                           h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, src_atoms_desc,
                           dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
       h_domain(h_domain), d_nei_offset(d_nei_offset), cutoff_radius(cutoff_radius),
-      atoms_per_layer(h_domain.ext_size_x * h_domain.ext_size_y) {
-
-  constexpr int threads_per_block = 256;
-  this->kernel_config_block_dim = dim3(threads_per_block);
-
-  // One thread only process one atom.
+      atoms_per_layer(h_domain.box_size_x * h_domain.box_size_y) {
   // note: size_x in h_domain is double
-  const _type_atom_count local_atoms_num = h_domain.box_size_x * h_domain.box_size_y * h_domain.box_size_z;
-  int blocks_num = (local_atoms_num - 1) / threads_per_block + 1;
-  this->kernel_config_grid_dim = dim3(blocks_num);
-
-  debug_printf("blocks: %d, threads: %d\n", blocks_num, threads_per_block);
-
 }
 
 void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const DoubleBuffer::tp_data_block_id block_id) {
@@ -46,6 +35,15 @@ void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const DoubleBuffer::tp_d
   // atoms number to be calculated in this block
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
 #ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+  // One thread only process one atom.
+  constexpr int threads_per_block = 256;
+  this->kernel_config_block_dim = dim3(threads_per_block);
+
+  int blocks_num = (atom_num_calc - 1) / threads_per_block + 1;
+  this->kernel_config_grid_dim = dim3(blocks_num);
+
+  debug_printf("blocks: %d, threads: %d\n", blocks_num, threads_per_block);
+
   (itl_atoms_pair<tp_device_rho, ModeRho>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
       d_p.atoms, nullptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
 #endif
