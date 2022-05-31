@@ -54,7 +54,7 @@ public:
    * @param stream HIP stream to be used for current data block.
    * @param block_id current data block id.
    */
-  void calcAsync(hipStream_t &stream, const int block_id) override;
+  void calcAsync(hipStream_t &stream, const DoubleBuffer::tp_data_block_id block_id) override;
 
 private:
   const _hipDeviceDomain h_domain;

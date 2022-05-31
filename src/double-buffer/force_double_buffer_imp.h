@@ -49,7 +49,7 @@ public:
                        type_f_buffer_desc _ptr_device_buf1, type_f_buffer_desc _ptr_device_buf2,
                        _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
 
-  void calcAsync(hipStream_t &stream, const int block_id) override;
+  void calcAsync(hipStream_t &stream, const DoubleBuffer::tp_data_block_id block_id) override;
 
 private:
   const _hipDeviceDomain h_domain;

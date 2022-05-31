@@ -6,13 +6,15 @@
 #define MISA_MD_HIP_KERNEL_TYPES_H
 
 #include <cstddef>
-#include "types/pre_define.h"
+
 #include "arch/arch_atom_list_collection.h"
+#include "types/pre_define.h"
+#include "double-buffer/double_buffer.h"
 
 #define HIP_DIMENSION 3
 
 // block id in double buffer
-typedef unsigned int _ty_data_block_id;
+typedef DoubleBuffer::tp_data_block_id _ty_data_block_id;
 
 typedef struct {
   int cal_atoms_num;
@@ -67,6 +69,5 @@ typedef struct {
   NeiOffset *nei_odd;
   NeiOffset *nei_even;
 } _hipDeviceNeiOffsets;
-
 
 #endif // MISA_MD_HIP_KERNEL_TYPES_H

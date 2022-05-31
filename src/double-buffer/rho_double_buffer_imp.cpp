@@ -38,8 +38,8 @@ RhoDoubleBufferImp::RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream
 
 }
 
-void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const int block_id) {
-  unsigned int data_start_index = 0, data_end_index = 0;
+void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const DoubleBuffer::tp_data_block_id block_id) {
+  DoubleBuffer::tp_block_item_idx data_start_index = 0, data_end_index = 0;
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
   type_rho_buffer_desc d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
