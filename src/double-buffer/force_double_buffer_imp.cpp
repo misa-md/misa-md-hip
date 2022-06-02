@@ -37,16 +37,32 @@ void ForceDoubleBufferImp::calcAsync(hipStream_t &stream, const DoubleBuffer::tp
   const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
 #ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
   // One thread only process one atom.
+  launchKernelMemLayoutAoS(stream, d_p, atom_num_calc, data_start_index, data_end_index);
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  launchKernelMemLayoutSoA(stream, d_p, atom_num_calc, data_start_index, data_end_index);
+#endif
+}
+
+void ForceDoubleBufferImp::launchKernelMemLayoutAoS(hipStream_t &stream, type_f_buffer_aos_desc d_p,
+                                                    const _type_atom_count atom_num_calc,
+                                                    const DoubleBuffer::tp_block_item_idx data_start_index,
+                                                    const DoubleBuffer::tp_block_item_idx data_end_index) {
   constexpr int threads_per_block = 256;
   this->kernel_config_block_dim = dim3(threads_per_block);
-  int blocks_num = (atom_num_calc - 1) / threads_per_block + 1;
+  int blocks_num = atom_num_calc / threads_per_block + (atom_num_calc % threads_per_block == 0 ? 0 : 1);
   this->kernel_config_grid_dim = dim3(blocks_num);
 
   (itl_atoms_pair<tp_device_force,
                   ModeForce>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
       d_p.atoms, nullptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
-#endif
-  // todo: SoA
+}
+
+void ForceDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_f_buffer_soa_desc d_p,
+                                                    const _type_atom_count atom_num_calc,
+                                                    const DoubleBuffer::tp_block_item_idx data_start_index,
+                                                    const DoubleBuffer::tp_block_item_idx data_end_index) {
+  // todo:
 }
 
 void ForceDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_f_buffer_desc dest_ptr,

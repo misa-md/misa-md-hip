@@ -32,22 +32,39 @@ void RhoDoubleBufferImp::calcAsync(hipStream_t &stream, const DoubleBuffer::tp_d
   getCurrentDataRange(block_id, data_start_index, data_end_index);
 
   type_rho_buffer_desc d_p = (block_id % 2 == 0) ? d_ptr_device_buf1 : d_ptr_device_buf2; // ghost is included in d_p
-  // atoms number to be calculated in this block
-  const std::size_t atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
+  // atoms number to be calculated in this data-block.
+  // note: size_x in variable atoms_per_layer is double.
+  const _type_atom_count atom_num_calc = atoms_per_layer * (data_end_index - data_start_index);
 #ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
-  // One thread only process one atom.
+  launchKernelMemLayoutAoS(stream, d_p, atom_num_calc, data_start_index, data_end_index);
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+  launchKernelMemLayoutSoA(stream, d_p, atom_num_calc, data_start_index, data_end_index);
+#endif
+}
+
+void RhoDoubleBufferImp::launchKernelMemLayoutAoS(hipStream_t &stream, type_rho_buffer_aos_desc d_p,
+                                                  const _type_atom_count atom_num_calc,
+                                                  const DoubleBuffer::tp_block_item_idx data_start_index,
+                                                  const DoubleBuffer::tp_block_item_idx data_end_index) {
   constexpr int threads_per_block = 256;
   this->kernel_config_block_dim = dim3(threads_per_block);
 
-  int blocks_num = (atom_num_calc - 1) / threads_per_block + 1;
+  // One thread only process one atom.
+  int blocks_num = atom_num_calc / threads_per_block + (atom_num_calc % threads_per_block == 0 ? 0 : 1);
   this->kernel_config_grid_dim = dim3(blocks_num);
 
   debug_printf("blocks: %d, threads: %d\n", blocks_num, threads_per_block);
 
   (itl_atoms_pair<tp_device_rho, ModeRho>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
       d_p.atoms, nullptr, d_nei_offset, data_start_index, data_end_index, cutoff_radius);
-#endif
-  // todo: SoA
+}
+
+void RhoDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_rho_buffer_soa_desc d_p,
+                                                  const _type_atom_count atom_num_calc,
+                                                  const DoubleBuffer::tp_block_item_idx data_start_index,
+                                                  const DoubleBuffer::tp_block_item_idx data_end_index) {
+  // todo:
 }
 
 void RhoDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_rho_buffer_desc dest_ptr,

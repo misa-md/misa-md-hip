@@ -66,6 +66,31 @@ private:
                                const std::size_t src_offset, const std::size_t des_offset, std::size_t size) override;
 
 private:
+  /**
+   * Launch the kernel to calculate force if the memory layout is Array of Struct mode.
+   * @param stream Hip Stream
+   * @param d_p double buffer descriptor
+   * @param atom_num_calc the number of atoms to be calculated in current data block.
+   * @param data_start_index block item start index.
+   * @param data_end_index block item ending index.
+   */
+  void launchKernelMemLayoutAoS(hipStream_t &stream, type_f_buffer_aos_desc d_p, const _type_atom_count atom_num_calc,
+                                const DoubleBuffer::tp_block_item_idx data_start_index,
+                                const DoubleBuffer::tp_block_item_idx data_end_index);
+
+  /**
+   * Launch the kernel to calculate force if the memory layout is Struct of Array mode.
+   * @param stream Hip Stream
+   * @param d_p double buffer descriptor
+   * @param atom_num_calc the number of atoms to be calculated in current data block.
+   * @param data_start_index block item start index.
+   * @param data_end_index block item ending index.
+   */
+  void launchKernelMemLayoutSoA(hipStream_t &stream, type_f_buffer_soa_desc d_p, const _type_atom_count atom_num_calc,
+                                const DoubleBuffer::tp_block_item_idx data_start_index,
+                                const DoubleBuffer::tp_block_item_idx data_end_index);
+
+private:
   // copy atoms data from host side to device buffer, where the memory layout of the host atoms and buffer is AoS.
   void copyHostToDevBuf_AoS(hipStream_t &stream, type_f_buffer_aos_desc dest_ptr, type_f_src_aos_desc src_ptr,
                             const std::size_t src_offset, std::size_t size);
