@@ -37,7 +37,7 @@ namespace device_atoms {
   typedef _type_dev_buffer_aos _type_buffer_desc; // buffer descriptor with data pointer in it.
   typedef _type_atom_list_aos _type_atom_list_desc;
   inline _type_atom_list_desc fromAtomListColl(_type_atom_list_collection coll) {
-    static_assert(sizeof(_cuAtomElement) == sizeof(AtomElement));
+    static_assert(sizeof(_cuAtomElement) == sizeof(AtomElement), "diffeernt size of atom struct");
     return _type_atom_list_desc{.atoms = reinterpret_cast<_cuAtomElement *>(coll.atoms)};
   }
 #endif

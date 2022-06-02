@@ -75,7 +75,7 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
   // then we can use variable `d_domain` in kernel function
   setDeviceDomain(h_domain);
 
-#ifdef MD_DEV_MODE
+#ifdef _MD_DEV_MODE
   _hipDeviceDomain sym_domain;
   HIP_CHECK(hipMemcpyFromSymbol(&sym_domain, HIP_SYMBOL(d_domain), sizeof(_hipDeviceDomain)));
   debug_printf("domain on device side: ghost (%d, %d, %d), box (%d, %d, %d), ext (%d, %d, %d), start (%ld, %ld, %ld).\n",
