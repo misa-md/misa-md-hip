@@ -9,15 +9,24 @@
 #include <hip_macros.h>
 
 #include "arch/arch_imp.h"
+#include "optimization_level.h"
 
-AtomElement *hip_create_atoms_mem(_type_atom_count size_x, _type_atom_count size_y, _type_atom_count size_z) {
-  AtomElement *atoms;
-  HIP_CHECK(hipHostMalloc(&atoms, size_x * size_y * size_z * sizeof(AtomElement)))
-  assert(atoms != nullptr);
-  return atoms;
+bool hip_create_atoms_mem(void **atoms, std::size_t data_type_size, _type_atom_count size_x, _type_atom_count size_y,
+                          _type_atom_count size_z) {
+  if ((OPT_LEVEL & OPT_PIN_MEM) != 0) {
+    HIP_CHECK(hipHostMalloc(atoms, size_x * size_y * size_z * data_type_size))
+    assert(*atoms != nullptr);
+    return true;
+  } else {
+    return false;
+  }
 }
 
-bool hip_release_atoms_mem(AtomElement *atoms) {
-  hipHostFree(atoms);
-  return true;
+bool hip_release_atoms_mem(void *atoms) {
+  if ((OPT_LEVEL & OPT_PIN_MEM) != 0) {
+    HIP_CHECK(hipHostFree(atoms));
+    return true;
+  } else {
+    return false;
+  }
 }

@@ -19,27 +19,48 @@ endif ()
 #set(CMAKE_CXX_COMPILER ${CMAKE_CUDA_COMPILER})
 #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --gpu-architecture sm_20)
 
-set(MD_HIP_ARCH_FILES
+set(MD_HIP_ARCH_NORMAL_FILES
+        cli.cpp
+        )
+
+hip_add_library(md_arch_hip_normal STATIC ${MD_HIP_ARCH_NORMAL_FILES})
+target_include_directories(
+        md_arch_hip_normal
+        PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(md_arch_hip_normal PUBLIC md)
+
+## set hip side source files.
+set(MD_HIP_ARCH_HEADER_FILES
+        kernels/hip_kernels.h
+        kernel_wrapper.h
+        memory/device_atoms.h
+        )
+
+set(MD_HIP_ARCH_SOURCE_FILES
         double-buffer/double_buffer.cpp
         double-buffer/rho_double_buffer_imp.cpp
         double-buffer/df_double_buffer_imp.cpp
         double-buffer/force_double_buffer_imp.cpp
         global_ops.cpp
         hip_arch_acc_imp.cpp
-        # hip_kernels.h
-        hip_kernels.hip.cpp
-        # kernel_wrapper.h
+        kernels/hip_kernels.hip.cpp
         kernel_wrapper.hip.cpp
+        memory/device_atoms_aos.cpp
+        memory/device_atoms_soa.cpp
         mem.cpp
         )
-set_source_files_properties(${MD_HIP_ARCH_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
+
+set_source_files_properties(${MD_HIP_ARCH_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
 
 set(MD_HIP_LIB_NAME md_arch_hip)
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
-hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_FILES} cli.cpp)
+hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_SOURCE_FILES} ${MD_HIP_ARCH_HEADER_FILES})
 # target_compile_options(${MD_HIP_LIB_NAME} PRIVATE "-Xcompiler" "-fPIC")
 
 target_include_directories(
@@ -54,5 +75,5 @@ target_link_libraries(
         PUBLIC
         md
         hip_pot::hip_pot
-        hip_hcc  # hip lib for dcu.
+        md_arch_hip_normal
 )
