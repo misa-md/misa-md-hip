@@ -69,18 +69,19 @@ void DfDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_df_buf
 void DfDoubleBufferImp::copyHostToDevBuf_AoS(hipStream_t &stream, type_df_buffer_aos_desc dest_ptr,
                                              type_df_src_aos_desc src_ptr, const std::size_t src_offset,
                                              std::size_t size) {
-  HIP_CHECK(
-      hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms, sizeof(_cuAtomElement) * size, hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+                           hipMemcpyHostToDevice, stream));
 }
 
 void DfDoubleBufferImp::copyHostToDevBuf_SoA(hipStream_t &stream, type_df_buffer_soa_desc dest_ptr,
                                              type_df_src_soa_desc src_ptr, const std::size_t src_offset,
                                              std::size_t size) {
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.types, src_ptr.types, sizeof(_type_atom_type_enum) * size, hipMemcpyHostToDevice,
-                           stream));
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.types, src_ptr.types + src_offset, sizeof(_type_atom_type_enum) * size,
                            hipMemcpyHostToDevice, stream));
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho, src_ptr.rho, sizeof(_type_atom_rho) * size, hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x + src_offset, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
+                           hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho, src_ptr.rho + src_offset, sizeof(_type_atom_rho) * size, hipMemcpyHostToDevice,
+                           stream));
   // memory set:
   HIP_CHECK(hipMemsetAsync(dest_ptr.df, 0, sizeof(_type_atom_rho) * size, stream));
 }

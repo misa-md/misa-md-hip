@@ -79,20 +79,22 @@ void ForceDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_f_b
 void ForceDoubleBufferImp::copyHostToDevBuf_AoS(hipStream_t &stream, type_f_buffer_aos_desc dest_ptr,
                                                 type_f_src_aos_desc src_ptr, const std::size_t src_offset,
                                                 std::size_t size) {
-  HIP_CHECK(
-      hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms, sizeof(_cuAtomElement) * size, hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+                           hipMemcpyHostToDevice, stream));
 }
 
 void ForceDoubleBufferImp::copyHostToDevBuf_SoA(hipStream_t &stream, type_f_buffer_soa_desc dest_ptr,
                                                 type_f_src_soa_desc src_ptr, const std::size_t src_offset,
                                                 std::size_t size) {
   // only copy type, x[3], rho, and df.
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.types, src_ptr.types, sizeof(_type_atom_type_enum) * size, hipMemcpyHostToDevice,
-                           stream));
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.types, src_ptr.types + src_offset, sizeof(_type_atom_type_enum) * size,
                            hipMemcpyHostToDevice, stream));
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho, src_ptr.rho, sizeof(_type_atom_rho) * size, hipMemcpyHostToDevice, stream));
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.df, src_ptr.df, sizeof(_type_atom_df) * size, hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x + src_offset, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
+                           hipMemcpyHostToDevice, stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho, src_ptr.rho + src_offset, sizeof(_type_atom_rho) * size, hipMemcpyHostToDevice,
+                           stream));
+  HIP_CHECK(hipMemcpyAsync(dest_ptr.df, src_ptr.df + src_offset, sizeof(_type_atom_df) * size, hipMemcpyHostToDevice,
+                           stream));
   // memory set force
   HIP_CHECK(hipMemsetAsync(dest_ptr.f, 0, sizeof(_type_atom_force[HIP_DIMENSION]) * size, stream));
 }
