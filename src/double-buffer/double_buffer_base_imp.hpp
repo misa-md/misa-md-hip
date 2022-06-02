@@ -13,7 +13,7 @@ typedef struct {
   /**
    * suggested data blocks.
    */
-  const unsigned int blocks;
+  const DoubleBuffer::tp_data_block_id blocks;
   /**
    * total data length in all data blocks. data length must large or equal then blocks number.
    *
@@ -83,8 +83,8 @@ public:
    *   for current data block.
    * @param block_id current data block id.
    */
-  void fillBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
-                  const unsigned int data_end_index, const int block_id) override {
+  void fillBuffer(hipStream_t &stream, const bool left, const tp_block_item_idx data_start_index,
+                  const tp_block_item_idx data_end_index, const tp_data_block_id block_id) override {
     const std::size_t size = eles_per_block_item * (data_end_index - data_start_index) + copy_ghost_size;
     // ST *h_p = h_ptr_src_data + eles_per_block_item * data_start_index;
     BT d_p = left ? d_ptr_device_buf1 : d_ptr_device_buf2;
@@ -100,8 +100,8 @@ public:
    *   for current data block.
    * @param block_id current data block id.
    */
-  void fetchBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
-                   const unsigned int data_end_index, const int block_id) override {
+  void fetchBuffer(hipStream_t &stream, const bool left, const tp_block_item_idx data_start_index,
+                   const tp_block_item_idx data_end_index, const tp_data_block_id block_id) override {
     const std::size_t size = eles_per_block_item * (data_end_index - data_start_index) + fetch_ghost_size;
 
     BT dev_p = (left ? d_ptr_device_buf1 : d_ptr_device_buf2);

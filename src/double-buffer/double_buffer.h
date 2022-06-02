@@ -7,10 +7,11 @@
 
 #include <hip/hip_runtime.h>
 
-#include "../kernel_types.h"
-
 class DoubleBuffer {
 public:
+  typedef unsigned int tp_data_block_id;
+  typedef unsigned int tp_block_item_idx;
+
   /**
    * Initialize double buffer with data length and suggested blocks number.
    * @Note: It the data_len can not be divided by blocks, the real blocks will plus 1.
@@ -18,7 +19,7 @@ public:
    * @param blocks suggested blocks number.
    * @param data_len data length.
    */
-  DoubleBuffer(hipStream_t &stream1, hipStream_t &stream2, const unsigned int blocks, const unsigned int data_len);
+  DoubleBuffer(hipStream_t &stream1, hipStream_t &stream2, const tp_data_block_id blocks, const tp_block_item_idx data_len);
 
   /**
    * schedule double-buffer algorithm.
@@ -34,10 +35,10 @@ public:
    *  (not include this ending index)
    * @param block_id block id. It can be less than 0, which is invalid.
    */
-  virtual void fillBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
-                          const unsigned int data_end_index, const int block_id) = 0;
+  virtual void fillBuffer(hipStream_t &stream, const bool left, const tp_block_item_idx data_start_index,
+                          const tp_block_item_idx data_end_index, const tp_data_block_id block_id) = 0;
 
-  void fillBufferWrapper(const int block_id);
+  void fillBufferWrapper(const tp_data_block_id block_id);
 
   /**
    *  fetch data back from buffer
@@ -48,16 +49,16 @@ public:
    *  (not include this ending index)
    * @param block_id current block id. It can be less than 0, which is invalid.
    */
-  virtual void fetchBuffer(hipStream_t &stream, const bool left, const unsigned int data_start_index,
-                           const unsigned int data_end_index, const int block_id) = 0;
+  virtual void fetchBuffer(hipStream_t &stream, const bool left, const tp_block_item_idx data_start_index,
+                           const tp_block_item_idx data_end_index, const tp_data_block_id block_id) = 0;
 
-  void fetchBufferWrapper(const int block_id);
+  void fetchBufferWrapper(const tp_data_block_id block_id);
 
   /**
    * wait calculation for the specific block to be finished.
    * @param block_id block id.
    */
-  virtual void waitCalc(const int block_id);
+  virtual void waitCalc(const tp_data_block_id block_id);
 
   /**
    * wait communication (data copy from host to device or device to host)
@@ -66,13 +67,13 @@ public:
    * and "copy to" of current block (id: block_id).
    * @param block_id
    */
-  virtual void waitComm(const int block_id);
+  virtual void waitComm(const tp_data_block_id block_id);
 
   /**
    * perform calculation asynchronously for a specified block.
    * @param block_id block id.
    */
-  virtual void calcAsync(hipStream_t &stream, const int block_id) = 0;
+  virtual void calcAsync(hipStream_t &stream, const tp_data_block_id block_id) = 0;
 
 protected:
   // hip stream for the two buffers, which is used for sync.
@@ -86,7 +87,8 @@ protected:
    * @param index_start returned value of start index for current block
    * @param index_end returned value of end index for current block (not include @param index_env).
    */
-  void getCurrentDataRange(const unsigned int block_i, unsigned int &index_start, unsigned int &index_end);
+  void getCurrentDataRange(const tp_data_block_id block_i, tp_block_item_idx &index_start,
+                           tp_block_item_idx &index_end);
 };
 
 #endif // HIP_DOUBLE_BUFFER_H

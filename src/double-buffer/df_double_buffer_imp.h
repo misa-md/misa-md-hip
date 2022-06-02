@@ -54,7 +54,7 @@ public:
    * @param stream HIP stream to be used for current data block.
    * @param block_id current data block id.
    */
-  void calcAsync(hipStream_t &stream, const int block_id) override;
+  void calcAsync(hipStream_t &stream, const DoubleBuffer::tp_data_block_id block_id) override;
 
 private:
   // lattice atoms array in current MPI process (including ghost regions)
@@ -69,6 +69,31 @@ private:
                                const std::size_t src_offset, std::size_t size) override;
   void copyFromDeviceBufToHost(hipStream_t &stream, type_df_dest_desc dest_ptr, type_df_buffer_desc src_ptr,
                                const std::size_t src_offset, const std::size_t des_offset, std::size_t size) override;
+
+private:
+  /**
+   * Launch the kernel to calculate embedded energy (df) if the memory layout is Array of Struct mode.
+   * @param stream Hip Stream
+   * @param d_p double buffer descriptor
+   * @param atom_num_calc the number of atoms to be calculated in current data block.
+   * @param data_start_index block item start index.
+   * @param data_end_index block item ending index.
+   */
+  void launchKernelMemLayoutAoS(hipStream_t &stream, type_df_buffer_aos_desc d_p, const _type_atom_count atom_num_calc,
+                                const DoubleBuffer::tp_block_item_idx data_start_index,
+                                const DoubleBuffer::tp_block_item_idx data_end_index);
+
+  /**
+   * Launch the kernel to calculate embedded energy (df) if the memory layout is Struct of Array mode.
+   * @param stream Hip Stream
+   * @param d_p double buffer descriptor
+   * @param atom_num_calc the number of atoms to be calculated in current data block.
+   * @param data_start_index block item start index.
+   * @param data_end_index block item ending index.
+   */
+  void launchKernelMemLayoutSoA(hipStream_t &stream, type_df_buffer_soa_desc d_p, const _type_atom_count atom_num_calc,
+                                const DoubleBuffer::tp_block_item_idx data_start_index,
+                                const DoubleBuffer::tp_block_item_idx data_end_index);
 
 private:
   // copy atoms data from host side to device buffer, where the memory layout of the host atoms and buffer is AoS.
