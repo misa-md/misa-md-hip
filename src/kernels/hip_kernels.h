@@ -28,6 +28,10 @@ __global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_d
 
 __global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius);
 
-__device__ inline void atomicAdd_(double *a, double b) { *a += b; }
+template <typename T> __device__ __forceinline__ T atomicAdd_(T *a, T b) {
+  //  return atomicAdd(a, b);
+  *a += b;
+  return *a;
+}
 
 #endif // HIP_KERNELS_H

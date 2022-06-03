@@ -14,8 +14,6 @@
 #include "kernel_pairs.hpp"
 #include "md_hip_config.h"
 
-constexpr int ModeRho = 0;
-constexpr int ModeForce = 2;
 
 template <int MODE>
 __device__ __forceinline__ void nei_interaction(int cur_type, _cuAtomElement &cur_atom, _cuAtomElement &nei_atom,

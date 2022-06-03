@@ -8,6 +8,7 @@
 #include "atom/atom_element.h"
 #include "hip_macros.h" // from hip_pot lib
 
+#include "../kernels/soa_thread_atom.h"
 #include "kernels/hip_kernels.h"
 #include "kernels/kernel_itl.hpp"
 #include "md_hip_config.h"
@@ -64,7 +65,10 @@ void RhoDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_rho_
                                                   const _type_atom_count atom_num_calc,
                                                   const DoubleBuffer::tp_block_item_idx data_start_index,
                                                   const DoubleBuffer::tp_block_item_idx data_end_index) {
-  // todo:
+  (md_nei_itl_soa<ModeRho, _type_atom_index_kernel, double, double, double, double,
+                  _type_atom_type_kernel>)<<<100, 256>>>(d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types),
+                                                         d_p.rho, d_p.df, d_p.f, atom_num_calc, d_nei_offset, h_domain,
+                                                         cutoff_radius);
 }
 
 void RhoDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_rho_buffer_desc dest_ptr,
