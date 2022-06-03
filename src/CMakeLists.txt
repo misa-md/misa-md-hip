@@ -37,6 +37,7 @@ set(MD_HIP_ARCH_HEADER_FILES
         kernels/hip_kernels.h
         kernel_wrapper.h
         memory/device_atoms.h
+        kernels/atom_index.hpp
         )
 
 set(MD_HIP_ARCH_SOURCE_FILES
