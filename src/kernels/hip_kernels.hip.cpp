@@ -8,15 +8,14 @@
 #include "hip_macros.h"
 #include "hip_pot_device.h"
 
-#include "md_hip_config.h"
 #include "global_ops.h"
 #include "kernel_itl.hpp"
-
+#include "md_hip_config.h"
 
 /**
  * @deprecated
  */
-__global__ void calc_rho(_cuAtomElement *, double *, _hipDeviceNeiOffsets, long, long, double) { return; }
+__global__ void calc_rho(_cuAtomElement *, double *, _hipDeviceNeiOffsets, int, int, double) { return; }
 
 __global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_data_block_id end_id) {
   const unsigned int thread_id = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
@@ -28,7 +27,9 @@ __global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_d
     const int z = atom_id / (d_domain.box_size_x * d_domain.box_size_y);
     const int y = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) / d_domain.box_size_x;
     const int x = (atom_id % (d_domain.box_size_x * d_domain.box_size_y)) % d_domain.box_size_x;
-    const _type_atom_index index = _deviceAtom3DIndexToLinear(x, y, z);
+    const _type_atom_index index = _deviceAtom3DIndexToLinear<_type_atom_index_kernel, _type_lattice_size>(
+        x, y, z, d_domain.ghost_size_x, d_domain.ghost_size_y, d_domain.ghost_size_z, d_domain.ext_size_x,
+        d_domain.ext_size_y);
     const int type0 = d_atoms[index].type;
     const double rho = d_atoms[index].rho;
 

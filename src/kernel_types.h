@@ -29,7 +29,6 @@ typedef struct {
 typedef double tp_device_rho;
 typedef double tp_device_df;
 typedef Vec3 tp_device_force;
-typedef _type_atom_index _type_atom_index_kernel;
 
 /**
  * Just a copy of type `AtomElement`.
