@@ -8,6 +8,7 @@
 #include "atom/atom_element.h"
 #include "hip_macros.h" // from hip_pot lib
 
+#include "../kernels/soa_thread_atom.h"
 #include "kernels/hip_kernels.h"
 #include "kernels/kernel_itl.hpp"
 #include "md_hip_config.h"
@@ -64,7 +65,10 @@ void RhoDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_rho_
                                                   const _type_atom_count atom_num_calc,
                                                   const DoubleBuffer::tp_block_item_idx data_start_index,
                                                   const DoubleBuffer::tp_block_item_idx data_end_index) {
-  // todo:
+  (md_nei_itl_soa<ModeRho, _type_atom_index_kernel, double, double, double, double,
+                  _type_atom_type_kernel>)<<<100, 256>>>(d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types),
+                                                         d_p.rho, d_p.df, d_p.f, atom_num_calc, d_nei_offset, h_domain,
+                                                         cutoff_radius);
 }
 
 void RhoDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_rho_buffer_desc dest_ptr,
@@ -84,6 +88,7 @@ void RhoDoubleBufferImp::copyHostToDevBuf_AoS(hipStream_t &stream, type_rho_buff
   HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
                            hipMemcpyHostToDevice, stream));
 }
+
 void RhoDoubleBufferImp::copyHostToDevBuf_SoA(hipStream_t &stream, type_rho_buffer_soa_desc dest_ptr,
                                               type_rho_src_soa_desc src_ptr, const std::size_t src_offset,
                                               std::size_t size) {
@@ -92,8 +97,12 @@ void RhoDoubleBufferImp::copyHostToDevBuf_SoA(hipStream_t &stream, type_rho_buff
                            hipMemcpyHostToDevice, stream));
   HIP_CHECK(hipMemcpyAsync(dest_ptr.x, src_ptr.x + src_offset, sizeof(_type_atom_location[HIP_DIMENSION]) * size,
                            hipMemcpyHostToDevice, stream));
-  // memory set force
-  HIP_CHECK(hipMemsetAsync(dest_ptr.rho, 0, sizeof(_type_atom_rho) * size, stream));
+  if (global_config::use_newtons_third_law()) {
+    // memory set rho.
+    // maybe memset is unnecessary if newton's third law is disabled, because it store into memory directly under this
+    // condition.
+    HIP_CHECK(hipMemsetAsync(dest_ptr.rho, 0, sizeof(_type_atom_rho) * size, stream));
+  }
 }
 
 void RhoDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_rho_dest_desc dest_ptr,
@@ -119,4 +128,10 @@ void RhoDoubleBufferImp::copyDevBufToHost_SoA(hipStream_t &stream, type_rho_dest
   // copy rho back
   HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset, src_ptr.rho + src_offset, sizeof(_type_atom_rho) * size,
                            hipMemcpyDeviceToHost, stream));
+  if (!global_config::use_newtons_third_law()) {
+    // if newton's third law is not enabled, we need also to copy df.
+    // because the full df is calculated in rho calculation.
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.df + des_offset, src_ptr.df + src_offset, sizeof(_type_atom_df) * size,
+                             hipMemcpyDeviceToHost, stream));
+  }
 }

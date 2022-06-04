@@ -37,6 +37,8 @@ set(MD_HIP_ARCH_HEADER_FILES
         kernels/hip_kernels.h
         kernel_wrapper.h
         memory/device_atoms.h
+        kernels/atom_index.hpp
+        kernels/soa_thread_atom.h
         )
 
 set(MD_HIP_ARCH_SOURCE_FILES
@@ -47,6 +49,7 @@ set(MD_HIP_ARCH_SOURCE_FILES
         global_ops.cpp
         hip_arch_acc_imp.cpp
         kernels/hip_kernels.hip.cpp
+        kernels/soa_thread_atom.cpp
         kernel_wrapper.hip.cpp
         memory/device_atoms_aos.cpp
         memory/device_atoms_soa.cpp
@@ -63,12 +66,17 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_SOURCE_FILES} ${MD_HIP_ARCH_HEADER_FILES})
 # target_compile_options(${MD_HIP_LIB_NAME} PRIVATE "-Xcompiler" "-fPIC")
 
+#set_target_properties(${MD_HIP_LIB_NAME} PROPERTIES LINKER_LANGUAGE HIP)
+
 target_include_directories(
         ${MD_HIP_LIB_NAME}
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
         $<INSTALL_INTERFACE:include>
 )
+# set_property(TARGET ${MD_HIP_LIB_NAME} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
+
+# MESSAGE(STATUS ${CUDA_LIBRARIES})
 
 target_link_libraries(
         ${MD_HIP_LIB_NAME}

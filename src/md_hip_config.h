@@ -5,11 +5,22 @@
 #ifndef HIP_CONFIG_H
 #define HIP_CONFIG_H
 
-#include <stdio.h>  
+#include <stdio.h>
 #include <stdarg.h>
 #include "types/pre_define.h" // MD_DEV_MODE macro this header
 
 //#define USE_NEWTONS_THIRD_LOW
+namespace global_config {
+  inline bool use_newtons_third_law() {
+#ifdef USE_NEWTONS_THIRD_LAW
+    return true;
+#endif
+#ifndef USE_NEWTONS_THIRD_LAW
+    return false;
+#endif
+  }
+}
+
 
 #ifdef __cplusplus
 extern "C" {
