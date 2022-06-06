@@ -10,6 +10,7 @@
 #include "atom_index.hpp"
 #include "hip_kernel_types.h"
 #include "hip_kernels.h"
+#include "kernels/types/vec3.hpp"
 #include "soa_eam_pair.hpp"
 #include "soa_thread_atom.h"
 
