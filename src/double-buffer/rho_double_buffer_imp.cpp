@@ -11,6 +11,7 @@
 #include "../kernels/soa_thread_atom.h"
 #include "kernels/hip_kernels.h"
 #include "kernels/kernel_itl.hpp"
+#include "kernels/soa_eam_pair.hpp"
 #include "md_hip_config.h"
 #include "rho_double_buffer_imp.h"
 
@@ -65,10 +66,10 @@ void RhoDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_rho_
                                                   const _type_atom_count atom_num_calc,
                                                   const DoubleBuffer::tp_block_item_idx data_start_index,
                                                   const DoubleBuffer::tp_block_item_idx data_end_index) {
-  (md_nei_itl_soa<ModeRho, _type_atom_index_kernel, double, double, double, double,
-                  _type_atom_type_kernel>)<<<100, 256>>>(d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types),
-                                                         d_p.rho, d_p.df, d_p.f, atom_num_calc, d_nei_offset, h_domain,
-                                                         cutoff_radius);
+  (md_nei_itl_soa<TpModeRho, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec1, double,
+                  _type_d_vec1>)<<<100, 256>>>(d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df,
+                                               reinterpret_cast<_type_d_vec1 *>(d_p.rho), atom_num_calc, d_nei_offset,
+                                               h_domain, cutoff_radius);
 }
 
 void RhoDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_rho_buffer_desc dest_ptr,
