@@ -12,9 +12,10 @@
 #include "double-buffer/force_double_buffer_imp.h"
 #include "double-buffer/rho_double_buffer_imp.h"
 #include "global_ops.h"
-#include "memory/device_atoms.h"
 #include "kernel_wrapper.h"
 #include "md_hip_config.h"
+#include "memory/device_atoms.h"
+#include "optimization_level.h"
 
 //定义线程块各维线程数
 #define THREADS_PER_BLOCK_X 16
@@ -104,11 +105,12 @@ void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_of
 #ifndef USE_NEWTONS_THIRD_LOW
   size_t nei_odd_size = nei_offset->nei_odd_offsets.size(); // 228 //偏移和原子id是long类型的,不过不影响？
   size_t nei_even_size = nei_offset->nei_even_offsets.size();
-  NeiOffset *nei_odd = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_odd_size);
-  NeiOffset *nei_even = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_even_size);
+  // the data will be used in kernel, need to convert from type NeiOffset to _type_nei_offset_kernel.
+  std::vector<_type_nei_offset_kernel> nei_odd(nei_odd_size);
+  std::vector<_type_nei_offset_kernel> nei_even(nei_even_size);
 
   for (size_t i = 0; i < nei_odd_size; i++) {
-    nei_odd[i] = nei_offset->nei_odd_offsets[i]; //一维偏移量索引
+    nei_odd[i] = nei_offset->nei_odd_offsets[i]; // 一维偏移量索引
   }
   for (size_t i = 0; i < nei_even_size; i++) {
     nei_even[i] = nei_offset->nei_even_offsets[i];
@@ -118,9 +120,12 @@ void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_of
 #ifdef USE_NEWTONS_THIRD_LOW
   const size_t nei_odd_size = nei_offset->nei_half_odd_offsets.size();
   const size_t nei_even_size = nei_offset->nei_half_even_offsets.size();
-  NeiOffset *nei_odd = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_odd_size); // todo delete
-  NeiOffset *nei_even = (NeiOffset *)malloc(sizeof(NeiOffset) * nei_even_size);
 
+  // the data will be used in kernel, need to convert from type NeiOffset to _type_nei_offset_kernel.
+  std::vector<_type_nei_offset_kernel> nei_odd(nei_odd_size);
+  std::vector<_type_nei_offset_kernel> nei_even(nei_even_size);
+
+  // sub_box区域内原子的邻居索引（因为x的odd，even，间隙原子等造成的不同，且x,y,z均大于等于0）(各维增量形式->一维增量）
   for (size_t i = 0; i < nei_odd_size; i++) {
     nei_odd[i] = nei_offset->nei_half_odd_offsets[i];
   }
@@ -129,12 +134,21 @@ void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_of
   }
 #endif
 
-  NeiOffset *d_nei_odd, *d_nei_even;
-  HIP_CHECK(hipMalloc((void **)&d_nei_odd, sizeof(NeiOffset) * nei_odd_size));
-  HIP_CHECK(hipMalloc((void **)&d_nei_even, sizeof(NeiOffset) * nei_even_size));
+  _type_nei_offset_kernel *d_nei_odd, *d_nei_even;
+  HIP_CHECK(hipMalloc((void **)&d_nei_odd, sizeof(_type_nei_offset_kernel) * nei_odd_size));
+  HIP_CHECK(hipMalloc((void **)&d_nei_even, sizeof(_type_nei_offset_kernel) * nei_even_size));
 
-  HIP_CHECK(hipMemcpy(d_nei_odd, nei_odd, sizeof(NeiOffset) * nei_odd_size, hipMemcpyHostToDevice));
-  HIP_CHECK(hipMemcpy(d_nei_even, nei_even, sizeof(NeiOffset) * nei_even_size, hipMemcpyHostToDevice));
+  // sort neighbor offset array to reduce branch divergence and better memory coalesced in GPU kernel
+  if ((OPT_LEVEL & OPT_SORT_NEIGHBOR) != 0) {
+    auto comp_nei = [](_type_nei_offset_kernel a, _type_nei_offset_kernel b) { return (std::abs(a) < std::abs(b)); };
+    std::sort(nei_odd.begin(), nei_odd.end(), comp_nei);
+    std::sort(nei_even.begin(), nei_even.end(), comp_nei);
+  }
+
+  HIP_CHECK(
+      hipMemcpy(d_nei_odd, nei_odd.data(), sizeof(_type_nei_offset_kernel) * nei_odd_size, hipMemcpyHostToDevice));
+  HIP_CHECK(
+      hipMemcpy(d_nei_even, nei_even.data(), sizeof(_type_nei_offset_kernel) * nei_even_size, hipMemcpyHostToDevice));
 
   d_nei_offset.nei_odd_size = nei_odd_size;
   d_nei_offset.nei_even_size = nei_even_size;

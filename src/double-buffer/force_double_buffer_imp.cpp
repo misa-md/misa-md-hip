@@ -8,11 +8,15 @@
 #include "atom/atom_element.h"
 #include "hip_macros.h" // from hip_pot lib
 
-#include "../kernels/soa_thread_atom.h"
 #include "force_double_buffer_imp.h"
 #include "kernels/hip_kernels.h"
 #include "kernels/kernel_itl.hpp"
+#include "kernels/soa_eam_pair.hpp"
+#include "kernels/soa_thread_atom.h"
+#include "kernels/soa_wf_atom.h"
+#include "kernels/types/vec3.hpp"
 #include "md_hip_config.h"
+#include "optimization_level.h"
 
 ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2,
                                            const db_buffer_data_desc data_desc, type_f_src_desc src_atoms_desc,
@@ -63,10 +67,24 @@ void ForceDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_f_
                                                     const _type_atom_count atom_num_calc,
                                                     const DoubleBuffer::tp_block_item_idx data_start_index,
                                                     const DoubleBuffer::tp_block_item_idx data_end_index) {
-  (md_nei_itl_soa<ModeForce, _type_atom_index_kernel, double, double, double, double,
-                  _type_atom_type_kernel>)<<<100, 256>>>(d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types),
-                                                         d_p.rho, d_p.df, d_p.f, atom_num_calc, d_nei_offset, h_domain,
-                                                         cutoff_radius);
+  if (KERNEL_STRATEGY == KERNEL_STRATEGY_THREAD_ATOM) {
+    constexpr int threads_per_block = 256;
+    int grid_dim = atom_num_calc / threads_per_block + (atom_num_calc % threads_per_block == 0 ? 0 : 1);
+
+    (md_nei_itl_soa<TpModeForce, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec3, double,
+                    _type_d_vec3>)<<<grid_dim, threads_per_block, 0, stream>>>(
+        d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec3 *>(d_p.f),
+        atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
+  } else {
+    constexpr int threads_per_block = 256;
+    constexpr int wf_size_per_block = threads_per_block / __WF_SIZE__;
+    int grid_dim = atom_num_calc / wf_size_per_block + (atom_num_calc % wf_size_per_block == 0 ? 0 : 1);
+
+    (md_nei_itl_wf_atom_soa<TpModeForce, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec3, double,
+                            _type_d_vec3>)<<<grid_dim, threads_per_block, 0, stream>>>(
+        d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec3 *>(d_p.f),
+        atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
+  }
 }
 
 void ForceDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_f_buffer_desc dest_ptr,
