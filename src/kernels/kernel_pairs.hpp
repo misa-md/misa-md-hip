@@ -7,8 +7,7 @@
 
 #include "hip_eam_device.h"
 #include "hip_kernels.h"
-#include "hip_macros.h"
-#include "hip_pot_device.h"
+#include "hip_pot_macros.h"
 
 #include "kernel_types.h"
 #include "md_hip_config.h"

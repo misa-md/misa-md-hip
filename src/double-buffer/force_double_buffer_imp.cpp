@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "atom/atom_element.h"
-#include "hip_macros.h" // from hip_pot lib
+#include "hip_pot_macros.h" // from hip_pot lib
 
 #include "force_double_buffer_imp.h"
 #include "kernels/hip_kernels.h"

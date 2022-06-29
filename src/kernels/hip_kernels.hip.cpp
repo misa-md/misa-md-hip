@@ -5,8 +5,7 @@
 
 #include "hip_eam_device.h"
 #include "hip_kernels.h"
-#include "hip_macros.h"
-#include "hip_pot_device.h"
+#include "hip_pot_macros.h"
 
 #include "global_ops.h"
 #include "kernel_itl.hpp"

@@ -4,7 +4,7 @@
 
 #include <iostream>
 #include "global_ops.h"
-#include "hip_macros.h" // from hip_pot lib
+#include "hip_pot_macros.h" // from hip_pot lib
 
 __device__ __constant__ _hipDeviceDomain d_domain;
 

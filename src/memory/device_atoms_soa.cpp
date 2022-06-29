@@ -5,7 +5,7 @@
 #include <hip/hip_runtime.h>
 
 #include "device_atoms.h"
-#include "hip_macros.h" // from hip_pot lib
+#include "hip_pot_macros.h" // from hip_pot lib
 
 #ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
 namespace device_atoms {

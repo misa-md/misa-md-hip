@@ -3,7 +3,7 @@
 //
 
 #include "df_double_buffer_imp.h"
-#include "hip_macros.h" // from hip_pot lib
+#include "hip_pot_macros.h" // from hip_pot lib
 
 DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
                                      type_df_src_desc src_atoms_desc, type_df_dest_desc dest_atoms_desc,

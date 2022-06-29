@@ -3,7 +3,6 @@
 //
 
 #include "hip_eam_device.h"
-#include "hip_pot_device.h"
 
 #include "../global_ops.h"
 #include "../kernel_types.h"

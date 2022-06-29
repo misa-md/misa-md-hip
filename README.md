@@ -22,14 +22,14 @@ For pkg and cmd-wrapper: just download the binary release and put them into dire
     ```diff
     dependencies:
     packages:
-    +   git.hpcer.dev/HPCer/MISA-MD/hip-potential@v0.2.0@hip_pot:
+    +   git.hpcer.dev/HPCer/MISA-MD/hip-potential@v0.3.0@hip_pot:
     +     features: ["HIP_POT_TEST_BUILD_ENABLE_FLAG=OFF", "CMAKE_CXX_FLAGS=-fPIC", "HIP_HIPCC_FLAGS=\"-fgpu-rdc -std=c++11\"", "HIP_NVCC_FLAGS=-rdc=true" ]
     ```
     or:
     ```diff
     dependencies:
     packages:
-    +   github.com/misa-md/hip-potential@v0.2.0@hip_pot:
+    +   github.com/misa-md/hip-potential@v0.3.0@hip_pot:
     +     features: ["HIP_POT_TEST_BUILD_ENABLE_FLAG=OFF", "CMAKE_CXX_FLAGS=-fPIC", "HIP_HIPCC_FLAGS=\"-fgpu-rdc -std=c++11\"", "HIP_NVCC_FLAGS=-rdc=true" ]
         github.com/Taywee/args@6.2.2@args: {build: ["CP args.hxx {{.INCLUDE}}/args.hpp"]}
     ```

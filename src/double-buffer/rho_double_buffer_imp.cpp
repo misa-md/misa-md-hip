@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include "atom/atom_element.h"
-#include "hip_macros.h" // from hip_pot lib
+#include "hip_pot_macros.h" // from hip_pot lib
 
 #include "../kernels/soa_thread_atom.h"
 #include "kernels/hip_kernels.h"

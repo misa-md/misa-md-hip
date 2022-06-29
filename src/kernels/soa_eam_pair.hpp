@@ -8,7 +8,6 @@
 #include <hip/hip_runtime.h>
 
 #include "hip_eam_device.h"
-#include "hip_pot_device.h"
 
 template <typename MODE, typename ATOM_TYPE, typename LOAD_TYPE, typename POS_TYPE, typename INDEX_TYPE,
           typename RESULT_TYPE>

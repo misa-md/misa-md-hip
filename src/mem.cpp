@@ -6,7 +6,7 @@
 #include <iostream>
 
 #include <hip/hip_runtime.h>
-#include <hip_macros.h>
+#include <hip_pot_macros.h>
 
 #include "arch/arch_imp.h"
 #include "optimization_level.h"
