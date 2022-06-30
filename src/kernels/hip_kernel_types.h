@@ -16,6 +16,5 @@ struct TpModeForce {};
 constexpr int ModeRho = 0;
 constexpr int ModeForce = 2;
 
-constexpr int __WF_SIZE__ = 32;
 
 #endif // MISA_MD_HIP_HIP_KERNEL_TYPES_H

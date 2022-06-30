@@ -4,4 +4,6 @@ project(MISA-MD-hip CXX)
 
 set(CMAKE_CXX_STANDARD 11)
 
+include(config.cmake)
+
 add_subdirectory(src)

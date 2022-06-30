@@ -15,6 +15,7 @@
 #include "kernels/soa_thread_atom.h"
 #include "kernels/soa_wf_atom.h"
 #include "kernels/types/vec3.hpp"
+#include "md_hip_building_config.h"
 #include "md_hip_config.h"
 #include "optimization_level.h"
 
@@ -77,7 +78,7 @@ void ForceDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_f_
         atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
   } else {
     constexpr int threads_per_block = 256;
-    constexpr int wf_size_per_block = threads_per_block / __WF_SIZE__;
+    constexpr int wf_size_per_block = threads_per_block / __WAVE_SIZE__;
     int grid_dim = atom_num_calc / wf_size_per_block + (atom_num_calc % wf_size_per_block == 0 ? 0 : 1);
 
     (md_nei_itl_wf_atom_soa<TpModeForce, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec3, double,
