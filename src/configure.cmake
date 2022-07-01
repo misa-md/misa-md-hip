@@ -12,7 +12,19 @@ else ()
         MESSAGE(FATAL_ERROR "unsupported kernel strategy ${MD_KERNEL_STRATEGY}")
 endif ()
 MESSAGE(STATUS "current kernel strategy is: ${MD_KERNEL_STRATEGY}")
- 
+
+
+# set optimization options.
+string(TOLOWER ${MD_OPTIMIZE_OPTION} MD_OPTIMIZE_OPTION_LOWER)
+if (MD_OPTIMIZE_OPTION_LOWER MATCHES "default")
+        set(MD_OPTIMIZE_OPTION_DEFAULT ON)
+elseif()
+        # check is a number
+        if (NOT MD_OPTIMIZE_OPTION_LOWER MATCHES "^[0-9]+$" )
+                MESSAGE(FATAL_ERROR "`MD_OPTIMIZE_OPTION` must be a number.")
+        endif ()
+endif ()
+
 
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/md_hip_building_config.h.in"
