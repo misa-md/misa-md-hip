@@ -11,4 +11,8 @@
 #cmakedefine __WF_SIZE__ @__WF_SIZE__@
 constexpr int __WAVE_SIZE__ = __WF_SIZE__;
 
+#cmakedefine MD_KERNEL_STRATEGY_DEFAULT
+#cmakedefine MD_KERNEL_STRATEGY_THREAD_ATOM
+#cmakedefine MD_KERNEL_STRATEGY_WF_ATOM
+
 #endif // MD_HIP_BUILDING_CONFIG_H
