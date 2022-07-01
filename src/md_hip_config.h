@@ -7,6 +7,8 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+
+#include "md_hip_building_config.h"
 #include "types/pre_define.h" // MD_DEV_MODE macro this header
 
 //#define USE_NEWTONS_THIRD_LOW

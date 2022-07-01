@@ -5,6 +5,7 @@
 #include "soa_wf_atom.h"
 #include "atom_index.hpp"
 #include "global_ops.h"
+#include "md_hip_building_config.h"
 #include "soa_eam_pair.hpp"
 
 template <typename MODE, typename ATOM_TYPE, typename INDEX_TYPE, typename POS_TYPE, typename V, typename DF,
@@ -14,8 +15,8 @@ __global__ void md_nei_itl_wf_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIMENS
                                        const _hipDeviceNeiOffsets offsets, const _hipDeviceDomain domain,
                                        const POS_TYPE cutoff_radius) {
   const int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
-  const int wf_id = tid / __WF_SIZE__;
-  const int tid_in_wf = tid % __WF_SIZE__;
+  const int wf_id = tid / __WAVE_SIZE__;
+  const int tid_in_wf = tid % __WAVE_SIZE__;
 
   // load atom.
   const INDEX_TYPE &atom_id = wf_id;
@@ -34,7 +35,7 @@ __global__ void md_nei_itl_wf_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIMENS
   const size_t nei_len = even_offset ? offsets.nei_even_size : offsets.nei_odd_size;
   const _type_nei_offset_kernel *offset_list = even_offset ? offsets.nei_even : offsets.nei_odd;
   V t0; // summation of rho or force
-  for (size_t k = tid_in_wf; k < nei_len; k += __WF_SIZE__) {
+  for (size_t k = tid_in_wf; k < nei_len; k += __WAVE_SIZE__) {
     // neighbor can be indexed with odd x or even x
     const int offset = offset_list[k];
     const INDEX_TYPE nei_index = lat.index + offset;

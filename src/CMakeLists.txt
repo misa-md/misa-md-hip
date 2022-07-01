@@ -15,6 +15,7 @@ else ()
     message(FATAL_ERROR "Could not find HIP. Ensure that HIP is either installed in /opt/rocm/hip or the variable HIP_PATH is set to point to the right location.")
 endif ()
 
+include(configure.cmake)
 
 #set(CMAKE_CXX_COMPILER ${CMAKE_CUDA_COMPILER})
 #set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS} --gpu-architecture sm_20)
@@ -73,7 +74,7 @@ hip_add_library(${MD_HIP_LIB_NAME} STATIC ${MD_HIP_ARCH_SOURCE_FILES} ${MD_HIP_A
 target_include_directories(
         ${MD_HIP_LIB_NAME}
         PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}$<SEMICOLON>${PROJECT_BINARY_DIR}/generated>
         $<INSTALL_INTERFACE:include>
 )
 # set_property(TARGET ${MD_HIP_LIB_NAME} PROPERTY CUDA_SEPARABLE_COMPILATION ON)
