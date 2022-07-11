@@ -11,6 +11,7 @@
 #include "force_double_buffer_imp.h"
 #include "kernels/hip_kernels.h"
 #include "kernels/kernel_itl.hpp"
+#include "kernels/soa_block_atom.hpp"
 #include "kernels/soa_eam_pair.hpp"
 #include "kernels/soa_thread_atom.h"
 #include "kernels/soa_wf_atom.h"
@@ -76,13 +77,25 @@ void ForceDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_f_
                     _type_d_vec3>)<<<grid_dim, threads_per_block, 0, stream>>>(
         d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec3 *>(d_p.f),
         atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
-  } else {
+  } else if (KERNEL_STRATEGY == KERNEL_STRATEGY_WF_ATOM) {
     constexpr int threads_per_block = 256;
     constexpr int wf_size_per_block = threads_per_block / __WAVE_SIZE__;
     int grid_dim = atom_num_calc / wf_size_per_block + (atom_num_calc % wf_size_per_block == 0 ? 0 : 1);
 
     (md_nei_itl_wf_atom_soa<TpModeForce, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec3, double,
                             _type_d_vec3>)<<<grid_dim, threads_per_block, 0, stream>>>(
+        d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec3 *>(d_p.f),
+        atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
+  } else {
+    constexpr int threads_per_block = 256;
+    int grid_dim = atom_num_calc;
+    const int shared_size =
+        soa_block_atom_kernel_shared_size<double, _type_d_vec3, _type_atom_type_kernel, _type_atom_index_kernel>(
+            d_nei_offset, threads_per_block / __WAVE_SIZE__);
+
+    (md_nei_itl_block_atom_soa<TpModeForce, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec3,
+                               double, _type_d_vec3,
+                               threads_per_block>)<<<grid_dim, threads_per_block, shared_size, stream>>>(
         d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec3 *>(d_p.f),
         atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
   }

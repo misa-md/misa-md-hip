@@ -15,6 +15,7 @@ constexpr int OPT_SORT_NEIGHBOR = 1 << 2;   // sort neighbor list, which is usua
 // kernel strategy: must be specified by one of following.
 constexpr int KERNEL_STRATEGY_THREAD_ATOM = 1 << 0; // one thread for one atom
 constexpr int KERNEL_STRATEGY_WF_ATOM = 1 << 1;     // one wavefront for one atom
+constexpr int KERNEL_STRATEGY_BLOCK_ATOM = 1 << 2;  // one block for an atom
 
 constexpr int DEFAULT_OPT_LEVEL = OPT_DB_BUF | OPT_PIN_MEM | OPT_SORT_NEIGHBOR;
 

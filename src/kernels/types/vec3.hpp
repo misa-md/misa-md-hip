@@ -25,6 +25,26 @@ template <typename T> struct _type_vec1 {
     SHFL_DOWN_WF_REDUCE<T, __WAVE_SIZE__>(t0_sum, data);
     data = t0_sum;
   }
+
+  template <int THREADS_IN_BLOCK, int WAVES_IN_BLOCK>
+  __device__ __forceinline__ void block_wf_reduce(const int tid_in_wf, const int tid_in_block,
+                                                  const int wave_id_in_block, _type_vec1<T> *temp_mem) {
+    wf_reduce();
+    // reduction in shared memory
+    if (tid_in_wf == 0) {
+      temp_mem[wave_id_in_block].data = this->data;
+    }
+
+    data = 0.0;
+    __syncthreads(); // wait shared memory writing finishes.
+    if (wave_id_in_block == 0) {
+#pragma unroll
+      for (int i = tid_in_block; i < WAVES_IN_BLOCK; i += __WAVE_SIZE__) {
+        data += temp_mem[i].data;
+      }
+      wf_reduce();
+    }
+  }
 };
 
 template <typename T> struct _type_vec3 {
@@ -39,6 +59,10 @@ template <typename T> struct _type_vec3 {
 
   __device__ __forceinline__ T first() { return data[0]; };
 
+  //  _type_vec3<T> &operator=(const _type_vec3<T> &other) {
+  //
+  //  }
+
   __device__ __forceinline__ void wf_reduce() {
     T t0_sum = 0.0, t1_sum = 0.0, t2_sum = 0.0;
     SHFL_DOWN_WF_REDUCE<T, __WAVE_SIZE__>(t0_sum, data[0]);
@@ -47,6 +71,32 @@ template <typename T> struct _type_vec3 {
     data[0] = t0_sum;
     data[1] = t1_sum;
     data[2] = t2_sum;
+  }
+
+  template <int THREADS_IN_BLOCK, int WAVES_IN_BLOCK>
+  __device__ __forceinline__ void block_wf_reduce(const int tid_in_wf, const int tid_in_block,
+                                                  const int wave_id_in_block, _type_vec3<T> *temp_mem) {
+    wf_reduce();
+    // reduction in shared memory
+    if (tid_in_wf == 0) {
+      temp_mem[wave_id_in_block].data[0] = this->data[0];
+      temp_mem[wave_id_in_block].data[1] = this->data[1];
+      temp_mem[wave_id_in_block].data[2] = this->data[2];
+    }
+
+    this->data[0] = 0.0;
+    this->data[1] = 0.0;
+    this->data[2] = 0.0;
+    __syncthreads(); // wait shared memory writing finishes.
+    if (wave_id_in_block == 0) {
+#pragma unroll
+      for (int i = tid_in_block; i < WAVES_IN_BLOCK; i += __WAVE_SIZE__) {
+        data[0] += temp_mem[i].data[0];
+        data[1] += temp_mem[i].data[1];
+        data[2] += temp_mem[i].data[2];
+      }
+      wf_reduce();
+    }
   }
 };
 
