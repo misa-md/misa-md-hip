@@ -79,7 +79,8 @@ __global__ void md_nei_itl_soa(const T (*__restrict x)[HIP_DIMENSION], const P *
     V t0; // summation of rho or force
     for (size_t k = 0; k < nei_len; k++) {
       // neighbor can be indexed with odd x or even x
-      const int offset = (lat.x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even[k] : offsets.nei_odd[k];
+      const _type_nei_offset_kernel offset =
+          (lat.x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even[k] : offsets.nei_odd[k];
       const I nei_index = lat.index + offset;
       const T x_nei[3] = {x[nei_index][0], x[nei_index][1], x[nei_index][2]};
       const P nei_type = types[nei_index];

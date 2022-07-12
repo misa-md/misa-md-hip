@@ -63,7 +63,8 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDe
     const double z0 = cur_atom.x[2];
     for (size_t k = 0; k < j; k++) {
       // neighbor can be indexed with odd x or even x
-      const int offset = (lat.x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even[k] : offsets.nei_odd[k];
+      const _type_nei_offset_kernel offset =
+          (lat.x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even[k] : offsets.nei_odd[k];
       _cuAtomElement &nei_atom = d_atoms[lat.index + offset]; /* get neighbor atom*/
       nei_interaction<MODE>(type0, cur_atom, nei_atom, x0, y0, z0, t0, t1, t2, cutoff_radius);
     }

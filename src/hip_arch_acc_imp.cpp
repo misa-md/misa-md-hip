@@ -17,10 +17,6 @@
 #include "memory/device_atoms.h"
 #include "optimization_level.h"
 
-//定义线程块各维线程数
-#define THREADS_PER_BLOCK_X 16
-#define THREADS_PER_BLOCK_Y 4
-#define THREADS_PER_BLOCK_Z 16
 
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
@@ -30,7 +26,7 @@ void hip_env_init() {
   int deviceCount = 0;
   HIP_CHECK(hipGetDeviceCount(&deviceCount));
   HIP_CHECK(hipSetDevice(0));
-  //设备信息，可以打印一些资源值
+  // 设备信息，可以打印一些资源值
   hipDeviceProp_t devProp;
   HIP_CHECK(hipGetDeviceProperties(&devProp, 0));
   std::cout << " System minor " << devProp.minor << std::endl;
@@ -158,7 +154,7 @@ void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_of
 }
 
 void hip_pot_init(eam *_pot) {
-  auto _pot_types = std::vector<atom_type::_type_atomic_no>{0,1,2};
+  auto _pot_types = std::vector<atom_type::_type_atomic_no>{0, 1, 2};
   hip_pot::_type_device_pot d_pot = hip_pot::potCopyHostToDevice(_pot, _pot_types);
   hip_pot::assignDevicePot(d_pot);
 }
@@ -171,7 +167,6 @@ void allocDeviceAtomsIfNull() {
   const _type_atom_count max_block_atom_size = // fixme: buffer size
       ((h_domain.box_size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
   device_atoms::try_malloc_double_buffers(atoms_per_layer, max_block_atom_size);
-
 }
 
 void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {

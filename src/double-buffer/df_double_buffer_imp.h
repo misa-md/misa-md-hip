@@ -58,7 +58,6 @@ public:
 
 private:
   // lattice atoms array in current MPI process (including ghost regions)
-  type_df_src_desc ptr_atoms;
   const _hipDeviceDomain h_domain;
   const _type_atom_count atoms_per_layer; // atoms in each layer at z dimension.
   dim3 kernel_config_block_dim;

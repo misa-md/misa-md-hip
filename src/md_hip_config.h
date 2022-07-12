@@ -44,7 +44,7 @@ inline int debug_printf(const char *cmd, ...) {
     // leave it empty
     return 0;
 }
-#endif 
+#endif
 
 #ifdef __cplusplus
 }
