@@ -86,7 +86,7 @@ void RhoDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_rho_
         d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec1 *>(d_p.rho),
         atom_num_calc, d_nei_offset, h_domain, cutoff_radius);
   } else {
-    constexpr int threads_per_block = 256;
+    constexpr int threads_per_block = 128;
     const int grid_dim = atom_num_calc;
     const int shared_size =
         soa_block_atom_kernel_shared_size<double, _type_d_vec1, _type_atom_type_kernel, _type_atom_index_kernel>(
