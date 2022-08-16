@@ -4,13 +4,13 @@
 
 #include "hip_eam_device.h"
 
-#include "../global_ops.h"
-#include "../kernel_types.h"
-#include "atom_index.hpp"
-#include "hip_kernel_types.h"
-#include "hip_kernels.h"
+#include "../../global_ops.h"
+#include "../soa_eam_pair.hpp"
+#include "../atom_index.hpp"
+#include "../hip_kernels.h"
+#include "kernel_types.h"
+#include "kernels/types/hip_kernel_types.h"
 #include "kernels/types/vec3.hpp"
-#include "soa_eam_pair.hpp"
 #include "soa_thread_atom.h"
 
 /**
@@ -87,7 +87,7 @@ __global__ void md_nei_itl_soa(const T (*__restrict x)[HIP_DIMENSION], const P *
       nei_interaction_soa<MODE, P, I, T, V, DF_TYPE>(df, lat.index, nei_index, type0, nei_type, x_src, x_nei, t0,
                                                      cutoff_radius);
     }
-    out[lat.index] = t0; // or: t0.store_to(out, lat.index);
+    out[lat.index] = t0; // or: t0.store_to(out, lat.index); but we did not test it.
 
     if (std::is_same<MODE, TpModeRho>::value) {
 #ifndef USE_NEWTONS_THIRD_LOW

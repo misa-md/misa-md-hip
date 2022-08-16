@@ -9,7 +9,7 @@
 
 #include "double-buffer/double_buffer.h"
 #include "global_ops.h"
-#include "hip_kernel_types.h"
+#include "types/hip_kernel_types.h"
 
 /**
  * calculate rho on device side

@@ -10,7 +10,7 @@
 
 #include "atom_index.hpp"
 #include "global_ops.h"
-#include "hip_kernel_types.h"
+#include "types/hip_kernel_types.h"
 #include "kernel_pairs.hpp"
 #include "md_hip_config.h"
 
