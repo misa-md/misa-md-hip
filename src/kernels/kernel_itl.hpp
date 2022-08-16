@@ -11,7 +11,7 @@
 #include "atom_index.hpp"
 #include "global_ops.h"
 #include "types/hip_kernel_types.h"
-#include "kernel_pairs.hpp"
+#include "aos_eam_pair.hpp"
 #include "md_hip_config.h"
 
 

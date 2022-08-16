@@ -2,8 +2,8 @@
 // Created by genshen on 2021/5/23.
 //
 
-#ifndef MISA_MD_HIP_KERNEL_PAIRS_H
-#define MISA_MD_HIP_KERNEL_PAIRS_H
+#ifndef MISA_MD_AOS_EAM_PAIR_H
+#define MISA_MD_AOS_EAM_PAIR_H
 
 #include "hip_eam_device.h"
 #include "hip_kernels.h"
@@ -58,4 +58,4 @@ NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const d
 #endif
 }
 
-#endif // MISA_MD_HIP_KERNEL_PAIRS_H
+#endif // MISA_MD_AOS_EAM_PAIR_H
