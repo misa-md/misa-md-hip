@@ -10,7 +10,7 @@
 
 #include "force_double_buffer_imp.h"
 #include "kernels/hip_kernels.h"
-#include "kernels/kernel_itl.hpp"
+#include "kernels/aos-thread-atom/kernel_itl.hpp"
 #include "kernels/soa-block-atom/soa_block_atom.hpp"
 #include "kernels/soa_eam_pair.hpp"
 #include "kernels/soa-thread-atom/soa_thread_atom.h"

@@ -8,7 +8,7 @@
 #include "hip_pot_macros.h"
 
 #include "global_ops.h"
-#include "kernel_itl.hpp"
+#include "aos-thread-atom/kernel_itl.hpp"
 #include "md_hip_config.h"
 
 /**
