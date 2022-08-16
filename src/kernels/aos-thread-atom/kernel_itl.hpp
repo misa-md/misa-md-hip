@@ -2,16 +2,16 @@
 // Created by genshen on 2021/5/23.
 //
 
-#ifndef MISA_MD_HIP_KERNEL_ITL_H
-#define MISA_MD_HIP_KERNEL_ITL_H
+#ifndef MISA_MD_AOS_THREAD_ATOM_KERNEL_ITL_H
+#define MISA_MD_AOS_THREAD_ATOM_KERNEL_ITL_H
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "atom_index.hpp"
+#include "kernels/atom_index.hpp"
 #include "global_ops.h"
-#include "hip_kernel_types.h"
-#include "kernel_pairs.hpp"
+#include "kernels/types/hip_kernel_types.h"
+#include "kernels/aos_eam_pair.hpp"
 #include "md_hip_config.h"
 
 
@@ -85,4 +85,4 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDe
   }
 }
 
-#endif // MISA_MD_HIP_KERNEL_ITL_H
+#endif // MISA_MD_AOS_THREAD_ATOM_KERNEL_ITL_H

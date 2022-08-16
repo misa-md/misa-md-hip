@@ -39,8 +39,9 @@ set(MD_HIP_ARCH_HEADER_FILES
         kernel_wrapper.h
         memory/device_atoms.h
         kernels/atom_index.hpp
-        kernels/soa_thread_atom.h
-        kernels/soa_wf_atom.h
+        kernels/soa-block-atom/soa_block_atom.hpp
+        kernels/soa-thread-atom/soa_thread_atom.h
+        kernels/soa-wf-atom/soa_wf_atom.h
         )
 
 set(MD_HIP_ARCH_SOURCE_FILES
@@ -51,8 +52,8 @@ set(MD_HIP_ARCH_SOURCE_FILES
         global_ops.cpp
         hip_arch_acc_imp.cpp
         kernels/hip_kernels.hip.cpp
-        kernels/soa_thread_atom.cpp
-        kernels/soa_wf_atom.cpp
+        kernels/soa-thread-atom/soa_thread_atom.cpp
+        kernels/soa-wf-atom/soa_wf_atom.cpp
         kernel_wrapper.hip.cpp
         memory/device_atoms_aos.cpp
         memory/device_atoms_soa.cpp

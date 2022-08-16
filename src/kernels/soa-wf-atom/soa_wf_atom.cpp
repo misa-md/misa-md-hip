@@ -3,10 +3,10 @@
 //
 
 #include "soa_wf_atom.h"
-#include "atom_index.hpp"
+#include "../atom_index.hpp"
 #include "global_ops.h"
 #include "md_hip_building_config.h"
-#include "soa_eam_pair.hpp"
+#include "../soa_eam_pair.hpp"
 
 template <typename MODE, typename ATOM_TYPE, typename INDEX_TYPE, typename POS_TYPE, typename V, typename DF,
           typename TARGET>

@@ -8,7 +8,7 @@
 #include <hip/hip_runtime.h>
 
 #include "../kernel_types.h"
-#include "hip_kernel_types.h"
+#include "types/hip_kernel_types.h"
 
 /**
  * convert a 3d index (x,y,z) to Linear index in atoms array.

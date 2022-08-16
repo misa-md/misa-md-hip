@@ -8,7 +8,7 @@
 #include <hip/hip_runtime.h>
 
 #include "kernels/common/reduce.hpp"
-#include "kernels/hip_kernel_types.h"
+#include "kernels/types/hip_kernel_types.h"
 #include "md_hip_building_config.h"
 
 template <typename T> struct _type_vec1 {

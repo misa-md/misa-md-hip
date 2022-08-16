@@ -7,7 +7,7 @@
 
 #include <hip/hip_runtime.h>
 
-#include "../kernel_types.h"
+#include "kernel_types.h"
 
 typedef int tp_domain_size;
 typedef struct {

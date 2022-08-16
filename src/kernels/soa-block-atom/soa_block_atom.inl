@@ -2,9 +2,9 @@
 // Created by genshen on 2022/7/10.
 //
 
-#include "atom_index.hpp"
+#include "../atom_index.hpp"
 #include "md_hip_building_config.h"
-#include "soa_eam_pair.hpp"
+#include "../soa_eam_pair.hpp"
 
 template <typename T, typename V, typename ATOM_TYPE, typename INDEX_TYPE> struct NeighborAtomPair {
   INDEX_TYPE nei_index;

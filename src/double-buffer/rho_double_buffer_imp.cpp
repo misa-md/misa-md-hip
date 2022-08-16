@@ -8,12 +8,12 @@
 #include "atom/atom_element.h"
 #include "hip_pot_macros.h" // from hip_pot lib
 
-#include "../kernels/soa_thread_atom.h"
+#include "../kernels/soa-thread-atom/soa_thread_atom.h"
 #include "kernels/hip_kernels.h"
-#include "kernels/kernel_itl.hpp"
-#include "kernels/soa_block_atom.hpp"
+#include "kernels/aos-thread-atom/kernel_itl.hpp"
+#include "kernels/soa-block-atom/soa_block_atom.hpp"
 #include "kernels/soa_eam_pair.hpp"
-#include "kernels/soa_wf_atom.h"
+#include "kernels/soa-wf-atom/soa_wf_atom.h"
 #include "md_hip_building_config.h"
 #include "md_hip_config.h"
 #include "optimization_level.h"

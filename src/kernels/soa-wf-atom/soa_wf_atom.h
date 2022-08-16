@@ -7,7 +7,7 @@
 
 #include <hip/hip_runtime.h>
 
-#include "../kernel_types.h"
+#include "kernel_types.h"
 #include "kernels/types/vec3.hpp"
 
 template <typename MODE, typename ATOM_TYPE, typename INDEX_TYPE, typename POS_TYPE, typename V, typename DF,
