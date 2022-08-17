@@ -43,15 +43,22 @@ void DfDoubleBufferImp::launchKernelMemLayoutAoS(hipStream_t &stream, type_df_bu
   this->kernel_config_block_dim = dim3(threads_per_block);
   this->kernel_config_grid_dim = dim3(blocks_num);
 
-  calDf<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(d_p.atoms, data_start_index,
-                                                                                    data_end_index);
+  cal_df_aos<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(d_p.atoms, data_start_index,
+                                                                                         data_end_index);
 }
 
 void DfDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_df_buffer_soa_desc d_p,
                                                  const _type_atom_count atom_num_calc,
                                                  const DoubleBuffer::tp_block_item_idx data_start_index,
                                                  const DoubleBuffer::tp_block_item_idx data_end_index) {
-  // todo:
+  constexpr int threads_per_block = 256;
+  int blocks_num = atom_num_calc / threads_per_block + (atom_num_calc % threads_per_block == 0 ? 0 : 1);
+  this->kernel_config_block_dim = dim3(threads_per_block);
+  this->kernel_config_grid_dim = dim3(blocks_num);
+
+  (cal_df_soa<_type_atom_type_enum, _type_atom_rho,
+              _type_atom_count>)<<<dim3(kernel_config_grid_dim), dim3(kernel_config_block_dim), 0, stream>>>(
+      d_p.rho, d_p.df, d_p.types, atom_num_calc, h_domain);
 }
 
 void DfDoubleBufferImp::copyFromHostToDeviceBuf(hipStream_t &stream, type_df_buffer_desc dest_ptr,
