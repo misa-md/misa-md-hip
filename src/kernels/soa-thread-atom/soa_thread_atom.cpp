@@ -87,7 +87,8 @@ __global__ void md_nei_itl_soa(const T (*__restrict x)[HIP_DIMENSION], const P *
       nei_interaction_soa<MODE, P, I, T, V, DF_TYPE>(df, lat.index, nei_index, type0, nei_type, x_src, x_nei, t0,
                                                      cutoff_radius);
     }
-    out[lat.index] = t0; // or: t0.store_to(out, lat.index); but we did not test it.
+    // out[lat.index] = t0; 
+    t0.add_to(out, lat.index);
 
     if (std::is_same<MODE, TpModeRho>::value) {
 #ifndef USE_NEWTONS_THIRD_LOW

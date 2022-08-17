@@ -8,12 +8,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "kernels/atom_index.hpp"
 #include "global_ops.h"
-#include "kernels/types/hip_kernel_types.h"
 #include "kernels/aos_eam_pair.hpp"
+#include "kernels/atom_index.hpp"
+#include "kernels/types/hip_kernel_types.h"
 #include "md_hip_config.h"
-
 
 template <int MODE>
 __device__ __forceinline__ void nei_interaction(int cur_type, _cuAtomElement &cur_atom, _cuAtomElement &nei_atom,
@@ -69,12 +68,24 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDe
       nei_interaction<MODE>(type0, cur_atom, nei_atom, x0, y0, z0, t0, t1, t2, cutoff_radius);
     }
     if (MODE == ModeRho) {
+#ifdef USE_NEWTONS_THIRD_LOW
+      hip_md_interaction_add(&(cur_atom.rho), t0);
+#endif
+#ifndef USE_NEWTONS_THIRD_LOW
       cur_atom.rho = t0;
+#endif
     }
     if (MODE == ModeForce) {
+#ifdef USE_NEWTONS_THIRD_LOW
+      hip_md_interaction_add(&(cur_atom.f[0]), t0);
+      hip_md_interaction_add(&(cur_atom.f[1]), t1);
+      hip_md_interaction_add(&(cur_atom.f[2]), t2);
+#endif
+#ifndef USE_NEWTONS_THIRD_LOW
       cur_atom.f[0] = t0;
       cur_atom.f[1] = t1;
       cur_atom.f[2] = t2;
+#endif
     }
 
 #ifndef USE_NEWTONS_THIRD_LOW

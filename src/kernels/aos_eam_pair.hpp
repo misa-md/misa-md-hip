@@ -9,6 +9,7 @@
 #include "hip_kernels.h"
 #include "hip_pot_macros.h"
 
+#include "common/utils.h"
 #include "kernel_types.h"
 #include "md_hip_config.h"
 
@@ -23,10 +24,10 @@ NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int
     return;
   }
   double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);
-  atomicAdd_(&t0, rhoTmp);
+  t0 += rhoTmp;
 #ifdef USE_NEWTONS_THIRD_LOW
   rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
-  atomicAdd_(&nei_atom.rho, rhoTmp);
+  hip_md_interaction_add(&nei_atom.rho, rhoTmp);
 #endif
 }
 
@@ -48,13 +49,13 @@ NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const d
   const double fx = delx * fpair;
   const double fy = dely * fpair;
   const double fz = delz * fpair;
-  atomicAdd_(&t0, fx);
-  atomicAdd_(&t1, fy);
-  atomicAdd_(&t2, fz);
+  t0 += fx;
+  t1 += fy;
+  t2 += fz;
 #ifdef USE_NEWTONS_THIRD_LOW
-  atomicAdd_(&(nei_atom.f[0]), -fx);
-  atomicAdd_(&(nei_atom.f[1]), -fy);
-  atomicAdd_(&(nei_atom.f[2]), -fz);
+  hip_md_interaction_add(&(nei_atom.f[0]), -fx);
+  hip_md_interaction_add(&(nei_atom.f[1]), -fy);
+  hip_md_interaction_add(&(nei_atom.f[2]), -fz);
 #endif
 }
 

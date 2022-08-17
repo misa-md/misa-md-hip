@@ -99,7 +99,7 @@ __global__ void md_nei_itl_block_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIM
   t.block_wf_reduce<THREADS_IN_BLOCK, WAVES_IN_BLOCK>(tid_in_wf, tid_in_block, wave_id_in_block, temp_mem);
   // store data back.
   if (tid_in_block == 0) {
-    target[lat.index] = t;
+    t.add_to(target, lat.index);
     if (std::is_same<MODE, TpModeRho>::value) {
 #ifndef USE_NEWTONS_THIRD_LOW
       df[lat.index] = hip_pot::hipDEmbedEnergy(cur_type, t.first());

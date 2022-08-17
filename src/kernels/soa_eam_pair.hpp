@@ -7,6 +7,7 @@
 
 #include <hip/hip_runtime.h>
 
+#include "common/utils.h"
 #include "hip_eam_device.h"
 #include "types/hip_kernel_types.h"
 
@@ -30,7 +31,7 @@ struct POT_SUM<TpModeRho, ATOM_TYPE, LOAD_TYPE, POS_TYPE, INDEX_TYPE, RESULT_TYP
     t.data += rhoTmp;
 #ifdef USE_NEWTONS_THIRD_LOW // todo:
     rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
-    atomicAdd_(&nei_atom.rho, rhoTmp);
+    hip_md_interaction_add(&nei_atom.rho, rhoTmp);
 #endif
   }
 };
@@ -52,9 +53,9 @@ struct POT_SUM<TpModeForce, ATOM_TYPE, LOAD_TYPE, POS_TYPE, INDEX_TYPE, RESULT_T
     t.data[1] += fy;
     t.data[2] += fz;
 #ifdef USE_NEWTONS_THIRD_LOW // todo:
-    atomicAdd_(&(nei_atom.f[0]), -fx);
-    atomicAdd_(&(nei_atom.f[1]), -fy);
-    atomicAdd_(&(nei_atom.f[2]), -fz);
+    hip_md_interaction_add(&(nei_atom.f[0]), -fx);
+    hip_md_interaction_add(&(nei_atom.f[1]), -fy);
+    hip_md_interaction_add(&(nei_atom.f[2]), -fz);
 #endif
   }
 };

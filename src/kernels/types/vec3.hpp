@@ -10,6 +10,7 @@
 #include "kernels/common/reduce.hpp"
 #include "kernels/types/hip_kernel_types.h"
 #include "md_hip_building_config.h"
+#include "../common/utils.h"
 
 template <typename T> struct _type_vec1 {
   T data = 0.0;
@@ -17,6 +18,10 @@ template <typename T> struct _type_vec1 {
   __device__ __forceinline__ void set_v(const _type_vec1<T> vec1) { data = vec1.data; }
 
   template <typename I> __device__ __forceinline__ void store_to(_type_vec1<T> *ptr, I offset) { ptr[offset] = *this; }
+
+  template <typename I> __device__ __forceinline__ void add_to(_type_vec1<T> *ptr, I offset) {
+    hip_md_interaction_add(&(ptr[offset].data), data);
+  }
 
   __device__ __forceinline__ T first() { return data; }
 
@@ -56,6 +61,12 @@ template <typename T> struct _type_vec3 {
   }
 
   template <typename I> __device__ __forceinline__ void store_to(_type_vec3<T> *ptr, I offset) { ptr[offset] = *this; }
+
+  template <typename I> __device__ __forceinline__ void add_to(_type_vec3<T> *ptr, I offset) {
+    hip_md_interaction_add(&(ptr[offset].data[0]), data[0]);
+    hip_md_interaction_add(&(ptr[offset].data[1]), data[1]);
+    hip_md_interaction_add(&(ptr[offset].data[2]), data[2]);
+  }
 
   __device__ __forceinline__ T first() { return data[0]; };
 
