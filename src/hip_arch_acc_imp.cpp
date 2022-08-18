@@ -96,39 +96,44 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
 }
 
 void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_offset) {
-  // constValue_int[21] = neighbours->nei_half_odd_offsets.size();//114
-  // constValue_int[22] = neighbours->nei_half_even_offsets.size();
-#ifndef USE_NEWTONS_THIRD_LOW
-  size_t nei_odd_size = nei_offset->nei_odd_offsets.size(); // 228 //偏移和原子id是long类型的,不过不影响？
-  size_t nei_even_size = nei_offset->nei_even_offsets.size();
-  // the data will be used in kernel, need to convert from type NeiOffset to _type_nei_offset_kernel.
-  std::vector<_type_nei_offset_kernel> nei_odd(nei_odd_size);
-  std::vector<_type_nei_offset_kernel> nei_even(nei_even_size);
+  size_t nei_odd_size = 0;
+  size_t nei_even_size = 0;
+  std::vector<_type_nei_offset_kernel> nei_odd;
+  std::vector<_type_nei_offset_kernel> nei_even;
 
-  for (size_t i = 0; i < nei_odd_size; i++) {
-    nei_odd[i] = nei_offset->nei_odd_offsets[i]; // 一维偏移量索引
-  }
-  for (size_t i = 0; i < nei_even_size; i++) {
-    nei_even[i] = nei_offset->nei_even_offsets[i];
-  }
-#endif
+  if (!global_config::use_newtons_third_law()) {
+    nei_odd_size = nei_offset->nei_odd_offsets.size(); // 228 //偏移和原子id是long类型的,不过不影响？
+    nei_even_size = nei_offset->nei_even_offsets.size();
+    // the data will be used in kernel, need to convert from type NeiOffset to _type_nei_offset_kernel.
+    // std::vector<_type_nei_offset_kernel> nei_odd(nei_odd_size);
+    // std::vector<_type_nei_offset_kernel> nei_even(nei_even_size);
+    nei_odd.resize(nei_odd_size);
+    nei_even.resize(nei_even_size);
 
-#ifdef USE_NEWTONS_THIRD_LOW
-  const size_t nei_odd_size = nei_offset->nei_half_odd_offsets.size();
-  const size_t nei_even_size = nei_offset->nei_half_even_offsets.size();
+    for (size_t i = 0; i < nei_odd_size; i++) {
+      nei_odd[i] = nei_offset->nei_odd_offsets[i]; // 一维偏移量索引
+    }
+    for (size_t i = 0; i < nei_even_size; i++) {
+      nei_even[i] = nei_offset->nei_even_offsets[i];
+    }
+  } else {
+    nei_odd_size = nei_offset->nei_half_odd_offsets.size();
+    nei_even_size = nei_offset->nei_half_even_offsets.size();
 
-  // the data will be used in kernel, need to convert from type NeiOffset to _type_nei_offset_kernel.
-  std::vector<_type_nei_offset_kernel> nei_odd(nei_odd_size);
-  std::vector<_type_nei_offset_kernel> nei_even(nei_even_size);
+    // the data will be used in kernel, need to convert from type NeiOffset to _type_nei_offset_kernel.
+    // std::vector<_type_nei_offset_kernel> nei_odd(nei_odd_size);
+    // std::vector<_type_nei_offset_kernel> nei_even(nei_even_size);
+    nei_odd.resize(nei_odd_size);
+    nei_even.resize(nei_even_size);
 
-  // sub_box区域内原子的邻居索引（因为x的odd，even，间隙原子等造成的不同，且x,y,z均大于等于0）(各维增量形式->一维增量）
-  for (size_t i = 0; i < nei_odd_size; i++) {
-    nei_odd[i] = nei_offset->nei_half_odd_offsets[i];
+    // sub_box区域内原子的邻居索引（因为x的odd，even，间隙原子等造成的不同，且x,y,z均大于等于0）(各维增量形式->一维增量）
+    for (size_t i = 0; i < nei_odd_size; i++) {
+      nei_odd[i] = nei_offset->nei_half_odd_offsets[i];
+    }
+    for (size_t i = 0; i < nei_even_size; i++) {
+      nei_even[i] = nei_offset->nei_half_even_offsets[i];
+    }
   }
-  for (size_t i = 0; i < nei_even_size; i++) {
-    nei_even[i] = nei_offset->nei_half_even_offsets[i];
-  }
-#endif
 
   _type_nei_offset_kernel *d_nei_odd, *d_nei_even;
   HIP_CHECK(hipMalloc((void **)&d_nei_odd, sizeof(_type_nei_offset_kernel) * nei_odd_size));
@@ -190,9 +195,9 @@ void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff
 }
 
 void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
-#ifndef USE_NEWTONS_THIRD_LOW
-  return;
-#endif
+  if (!global_config::use_newtons_third_law()) {
+    return;
+  }
 
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {

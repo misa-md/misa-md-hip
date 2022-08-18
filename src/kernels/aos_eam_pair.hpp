@@ -25,10 +25,10 @@ NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int
   }
   double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);
   t0 += rhoTmp;
-#ifdef USE_NEWTONS_THIRD_LOW
-  rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
-  hip_md_interaction_add(&nei_atom.rho, rhoTmp);
-#endif
+  if (global_config::use_newtons_third_law()) {
+    rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
+    hip_md_interaction_add(&nei_atom.rho, rhoTmp);
+  }
 }
 
 NEIGHBOR_PAIR_IMP(df, const double dist2, const double cutoff_radius, const int cur_type, const int nei_type,
@@ -52,11 +52,11 @@ NEIGHBOR_PAIR_IMP(force, const double dist2, const double cutoff_radius, const d
   t0 += fx;
   t1 += fy;
   t2 += fz;
-#ifdef USE_NEWTONS_THIRD_LOW
-  hip_md_interaction_add(&(nei_atom.f[0]), -fx);
-  hip_md_interaction_add(&(nei_atom.f[1]), -fy);
-  hip_md_interaction_add(&(nei_atom.f[2]), -fz);
-#endif
+  if (global_config::use_newtons_third_law()) {
+    hip_md_interaction_add(&(nei_atom.f[0]), -fx);
+    hip_md_interaction_add(&(nei_atom.f[1]), -fy);
+    hip_md_interaction_add(&(nei_atom.f[2]), -fz);
+  }
 }
 
 #endif // MISA_MD_AOS_EAM_PAIR_H

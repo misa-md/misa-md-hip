@@ -3,8 +3,8 @@
 //
 
 #include "../atom_index.hpp"
-#include "md_hip_building_config.h"
 #include "../soa_eam_pair.hpp"
+#include "md_hip_building_config.h"
 
 template <typename T, typename V, typename ATOM_TYPE, typename INDEX_TYPE> struct NeighborAtomPair {
   INDEX_TYPE nei_index;
@@ -89,8 +89,8 @@ __global__ void md_nei_itl_block_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIM
   for (int i = tid_in_block; i < shared_index_val; i += THREADS_IN_BLOCK) {
     NeighborAtomPair<POS_TYPE, V, ATOM_TYPE, INDEX_TYPE> nei = neighbor_atoms[i];
     MODE m;
-    POT_SUM<MODE, ATOM_TYPE, DF, POS_TYPE, INDEX_TYPE, V>()(m, t, df, cur_index, nei.nei_index, cur_type, nei.nei_type,
-                                                            nei.dist2(), nei.delx, nei.dely, nei.delz);
+    POT_SUM<MODE, ATOM_TYPE, DF, TARGET, POS_TYPE, INDEX_TYPE, V>()(
+        m, t, df, target, cur_index, nei.nei_index, cur_type, nei.nei_type, nei.dist2(), nei.delx, nei.dely, nei.delz);
   }
   __syncthreads();
 
@@ -101,9 +101,9 @@ __global__ void md_nei_itl_block_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIM
   if (tid_in_block == 0) {
     t.add_to(target, lat.index);
     if (std::is_same<MODE, TpModeRho>::value) {
-#ifndef USE_NEWTONS_THIRD_LOW
-      df[lat.index] = hip_pot::hipDEmbedEnergy(cur_type, t.first());
-#endif
+      if (!global_config::use_newtons_third_law()) {
+        df[lat.index] = hip_pot::hipDEmbedEnergy(cur_type, t.first());
+      }
     }
   }
 }

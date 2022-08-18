@@ -68,31 +68,29 @@ __global__ void itl_atoms_pair(_cuAtomElement *d_atoms, T *_d_result_buf, _hipDe
       nei_interaction<MODE>(type0, cur_atom, nei_atom, x0, y0, z0, t0, t1, t2, cutoff_radius);
     }
     if (MODE == ModeRho) {
-#ifdef USE_NEWTONS_THIRD_LOW
-      hip_md_interaction_add(&(cur_atom.rho), t0);
-#endif
-#ifndef USE_NEWTONS_THIRD_LOW
-      cur_atom.rho = t0;
-#endif
+      if (global_config::use_newtons_third_law()) {
+        hip_md_interaction_add(&(cur_atom.rho), t0);
+      } else {
+        cur_atom.rho = t0;
+      }
     }
     if (MODE == ModeForce) {
-#ifdef USE_NEWTONS_THIRD_LOW
-      hip_md_interaction_add(&(cur_atom.f[0]), t0);
-      hip_md_interaction_add(&(cur_atom.f[1]), t1);
-      hip_md_interaction_add(&(cur_atom.f[2]), t2);
-#endif
-#ifndef USE_NEWTONS_THIRD_LOW
-      cur_atom.f[0] = t0;
-      cur_atom.f[1] = t1;
-      cur_atom.f[2] = t2;
-#endif
+      if (global_config::use_newtons_third_law()) {
+        hip_md_interaction_add(&(cur_atom.f[0]), t0);
+        hip_md_interaction_add(&(cur_atom.f[1]), t1);
+        hip_md_interaction_add(&(cur_atom.f[2]), t2);
+      } else {
+        cur_atom.f[0] = t0;
+        cur_atom.f[1] = t1;
+        cur_atom.f[2] = t2;
+      }
     }
 
-#ifndef USE_NEWTONS_THIRD_LOW
-    if (MODE == ModeRho) {
-      cur_atom.df = hip_pot::hipDEmbedEnergy(type0, cur_atom.rho);
+    if (!global_config::use_newtons_third_law()) {
+      if (MODE == ModeRho) {
+        cur_atom.df = hip_pot::hipDEmbedEnergy(type0, cur_atom.rho);
+      }
     }
-#endif // USE_NEWTONS_THIRD_LOW
   }
 }
 
