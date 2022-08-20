@@ -9,10 +9,8 @@ DfDoubleBufferImp::DfDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2,
                                      type_df_src_desc src_atoms_desc, type_df_dest_desc dest_atoms_desc,
                                      type_df_buffer_desc _ptr_device_buf1, type_df_buffer_desc _ptr_device_buf2,
                                      _hipDeviceDomain h_domain)
-    : DoubleBufferBaseImp(stream1, stream2, data_desc,
-                          2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
-                          h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, src_atoms_desc,
-                          dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
+    : DoubleBufferBaseImp(stream1, stream2, data_desc, db_buffer_data_copy_option::build_copy_option(h_domain),
+                          src_atoms_desc, dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
       h_domain(h_domain), atoms_per_layer(h_domain.box_size_x * h_domain.box_size_y) {
   // note: size_x in h_domain is double
 }
