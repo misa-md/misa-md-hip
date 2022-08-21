@@ -4,9 +4,9 @@
 
 #include "soa_wf_atom.h"
 #include "../atom_index.hpp"
+#include "../soa_eam_pair.hpp"
 #include "global_ops.h"
 #include "md_hip_building_config.h"
-#include "../soa_eam_pair.hpp"
 
 template <typename MODE, typename ATOM_TYPE, typename INDEX_TYPE, typename POS_TYPE, typename V, typename DF,
           typename TARGET>
@@ -52,19 +52,19 @@ __global__ void md_nei_itl_wf_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIMENS
       continue;
     }
     MODE m;
-    POT_SUM<MODE, ATOM_TYPE, DF, POS_TYPE, INDEX_TYPE, V>()(m, t0, df, cur_index, nei_index, cur_type, nei_type, dist2,
-                                                            delx, dely, delz);
+    POT_SUM<MODE, ATOM_TYPE, DF, TARGET, POS_TYPE, INDEX_TYPE, V>()(m, t0, df, target, cur_index, nei_index, cur_type,
+                                                                    nei_type, dist2, delx, dely, delz);
   }
 
   // reduction to thread 0 in current wavefront.
   t0.wf_reduce();
   // store data back.
   if (tid_in_wf == 0) {
-    target[lat.index] = t0;
+    t0.add_to(target, lat.index); // todo: use if "use newton's law" for storing back.
     if (std::is_same<MODE, TpModeRho>::value) {
-#ifndef USE_NEWTONS_THIRD_LOW
-      df[lat.index] = hip_pot::hipDEmbedEnergy(cur_type, t0.first());
-#endif
+      if (!global_config::use_newtons_third_law()) {
+        df[lat.index] = hip_pot::hipDEmbedEnergy(cur_type, t0.first());
+      }
     }
   }
 }

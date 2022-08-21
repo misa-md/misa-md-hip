@@ -11,9 +11,8 @@
 #include "md_hip_building_config.h"
 #include "types/pre_define.h" // MD_DEV_MODE macro this header
 
-//#define USE_NEWTONS_THIRD_LOW
 namespace global_config {
-  inline bool use_newtons_third_law() {
+  __device__ __host__ constexpr inline bool use_newtons_third_law() {
 #ifdef USE_NEWTONS_THIRD_LAW
     return true;
 #endif
@@ -21,8 +20,7 @@ namespace global_config {
     return false;
 #endif
   }
-}
-
+} // namespace global_config
 
 #ifdef __cplusplus
 extern "C" {

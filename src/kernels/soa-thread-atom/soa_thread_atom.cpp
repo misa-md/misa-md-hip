@@ -5,9 +5,9 @@
 #include "hip_eam_device.h"
 
 #include "../../global_ops.h"
-#include "../soa_eam_pair.hpp"
 #include "../atom_index.hpp"
 #include "../hip_kernels.h"
+#include "../soa_eam_pair.hpp"
 #include "kernel_types.h"
 #include "kernels/types/hip_kernel_types.h"
 #include "kernels/types/vec3.hpp"
@@ -23,10 +23,12 @@
  * @tparam INP_TYPE type of input data
  * @tparam V type of return value
  */
-template <typename MODE, typename ATOM_TYPE, typename INDEX_TYPE, typename POS_TYPE, typename V, typename INP_TYPE>
-__device__ __forceinline__ void
-nei_interaction_soa(INP_TYPE *inp, const INDEX_TYPE cur_index, const INDEX_TYPE nei_index, const ATOM_TYPE cur_type,
-                    const ATOM_TYPE nei_type, const POS_TYPE x0[3], const POS_TYPE nei_x[3], V &t0, POS_TYPE cutoff) {
+template <typename MODE, typename ATOM_TYPE, typename INDEX_TYPE, typename POS_TYPE, typename V, typename INP_TYPE,
+          typename TARGET>
+__device__ __forceinline__ void nei_interaction_soa(INP_TYPE *inp, TARGET *target, const INDEX_TYPE cur_index,
+                                                    const INDEX_TYPE nei_index, const ATOM_TYPE cur_type,
+                                                    const ATOM_TYPE nei_type, const POS_TYPE x0[3],
+                                                    const POS_TYPE nei_x[3], V &t0, POS_TYPE cutoff) {
   if (nei_type < 0) {
     return;
   }
@@ -38,8 +40,8 @@ nei_interaction_soa(INP_TYPE *inp, const INDEX_TYPE cur_index, const INDEX_TYPE 
     return;
   }
   MODE h;
-  POT_SUM<MODE, ATOM_TYPE, INP_TYPE, POS_TYPE, INDEX_TYPE, V>()(h, t0, inp, cur_index, nei_index, cur_type, nei_type,
-                                                                dist2, delx, dely, delz);
+  POT_SUM<MODE, ATOM_TYPE, INP_TYPE, TARGET, POS_TYPE, INDEX_TYPE, V>()(h, t0, inp, target, cur_index, nei_index,
+                                                                        cur_type, nei_type, dist2, delx, dely, delz);
 }
 
 /**
@@ -84,17 +86,17 @@ __global__ void md_nei_itl_soa(const T (*__restrict x)[HIP_DIMENSION], const P *
       const I nei_index = lat.index + offset;
       const T x_nei[3] = {x[nei_index][0], x[nei_index][1], x[nei_index][2]};
       const P nei_type = types[nei_index];
-      nei_interaction_soa<MODE, P, I, T, V, DF_TYPE>(df, lat.index, nei_index, type0, nei_type, x_src, x_nei, t0,
-                                                     cutoff_radius);
+      nei_interaction_soa<MODE, P, I, T, V, DF_TYPE, OUT_TYPE>(df, out, lat.index, nei_index, type0, nei_type, x_src,
+                                                               x_nei, t0, cutoff_radius);
     }
-    out[lat.index] = t0; // or: t0.store_to(out, lat.index); but we did not test it.
+    // out[lat.index] = t0; 
+    t0.add_to(out, lat.index);
 
     if (std::is_same<MODE, TpModeRho>::value) {
-#ifndef USE_NEWTONS_THIRD_LOW
-      df[lat.index] = hip_pot::hipDEmbedEnergy(type0, t0.first());
-#endif
+      if (!global_config::use_newtons_third_law()) {
+        df[lat.index] = hip_pot::hipDEmbedEnergy(type0, t0.first());
+      }
     }
-    // todo: newton's third law
   }
 }
 

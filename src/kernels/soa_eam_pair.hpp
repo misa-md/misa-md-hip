@@ -7,40 +7,48 @@
 
 #include <hip/hip_runtime.h>
 
+#include "common/utils.h"
 #include "hip_eam_device.h"
 #include "types/hip_kernel_types.h"
 
-template <typename MODE, typename ATOM_TYPE, typename LOAD_TYPE, typename POS_TYPE, typename INDEX_TYPE,
-          typename RESULT_TYPE>
+template <typename MODE, typename ATOM_TYPE, typename LOAD_TYPE, typename STORE_TYPE, typename POS_TYPE,
+          typename INDEX_TYPE, typename RESULT_TYPE>
 struct POT_SUM {
   __device__ __forceinline__ void operator()(const MODE m, RESULT_TYPE &t, const LOAD_TYPE *src_data,
-                                             const INDEX_TYPE cur_index, const INDEX_TYPE nei_index,
-                                             const ATOM_TYPE cur_type, const ATOM_TYPE nei_type, const POS_TYPE dist2,
-                                             const POS_TYPE delta_x, const POS_TYPE delta_y, const POS_TYPE delta_z) {}
+                                             STORE_TYPE *target_data, const INDEX_TYPE cur_index,
+                                             const INDEX_TYPE nei_index, const ATOM_TYPE cur_type,
+                                             const ATOM_TYPE nei_type, const POS_TYPE dist2, const POS_TYPE delta_x,
+                                             const POS_TYPE delta_y, const POS_TYPE delta_z) {}
 };
 
 // class partial specialization.
-template <typename ATOM_TYPE, typename LOAD_TYPE, typename POS_TYPE, typename INDEX_TYPE, typename RESULT_TYPE>
-struct POT_SUM<TpModeRho, ATOM_TYPE, LOAD_TYPE, POS_TYPE, INDEX_TYPE, RESULT_TYPE> {
+template <typename ATOM_TYPE, typename LOAD_TYPE, typename STORE_TYPE, typename POS_TYPE, typename INDEX_TYPE,
+          typename RESULT_TYPE>
+struct POT_SUM<TpModeRho, ATOM_TYPE, LOAD_TYPE, STORE_TYPE, POS_TYPE, INDEX_TYPE, RESULT_TYPE> {
   __device__ __forceinline__ void operator()(const TpModeRho m, RESULT_TYPE &t, const LOAD_TYPE *src_data,
-                                             const INDEX_TYPE cur_index, const INDEX_TYPE nei_index,
-                                             const ATOM_TYPE cur_type, const ATOM_TYPE nei_type, const POS_TYPE dist2,
-                                             const POS_TYPE delta_x, const POS_TYPE delta_y, const POS_TYPE delta_z) {
+                                             STORE_TYPE *target_data, const INDEX_TYPE cur_index,
+                                             const INDEX_TYPE nei_index, const ATOM_TYPE cur_type,
+                                             const ATOM_TYPE nei_type, const POS_TYPE dist2, const POS_TYPE delta_x,
+                                             const POS_TYPE delta_y, const POS_TYPE delta_z) {
     LOAD_TYPE rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2); // todo LOAD_TYPE is not accuracy.
     t.data += rhoTmp;
-#ifdef USE_NEWTONS_THIRD_LOW // todo:
-    rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
-    atomicAdd_(&nei_atom.rho, rhoTmp);
-#endif
+    if (global_config::use_newtons_third_law()) {
+      if (nei_type != cur_type) {
+        rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
+      }
+      hip_md_interaction_add(&(target_data[nei_index].data), rhoTmp);
+    }
   }
 };
 
-template <typename ATOM_TYPE, typename LOAD_TYPE, typename POS_TYPE, typename INDEX_TYPE, typename RESULT_TYPE>
-struct POT_SUM<TpModeForce, ATOM_TYPE, LOAD_TYPE, POS_TYPE, INDEX_TYPE, RESULT_TYPE> {
+template <typename ATOM_TYPE, typename LOAD_TYPE, typename STORE_TYPE, typename POS_TYPE, typename INDEX_TYPE,
+          typename RESULT_TYPE>
+struct POT_SUM<TpModeForce, ATOM_TYPE, LOAD_TYPE, STORE_TYPE, POS_TYPE, INDEX_TYPE, RESULT_TYPE> {
   __device__ __forceinline__ void operator()(const TpModeForce h, RESULT_TYPE &t, const LOAD_TYPE *src_data,
-                                             const INDEX_TYPE cur_index, const INDEX_TYPE nei_index,
-                                             const ATOM_TYPE cur_type, const ATOM_TYPE nei_type, const POS_TYPE dist2,
-                                             const POS_TYPE delta_x, const POS_TYPE delta_y, const POS_TYPE delta_z) {
+                                             STORE_TYPE *target_data, const INDEX_TYPE cur_index,
+                                             const INDEX_TYPE nei_index, const ATOM_TYPE cur_type,
+                                             const ATOM_TYPE nei_type, const POS_TYPE dist2, const POS_TYPE delta_x,
+                                             const POS_TYPE delta_y, const POS_TYPE delta_z) {
     const LOAD_TYPE df_from = src_data[cur_index];
     const LOAD_TYPE df_to = src_data[nei_index];
 
@@ -51,11 +59,11 @@ struct POT_SUM<TpModeForce, ATOM_TYPE, LOAD_TYPE, POS_TYPE, INDEX_TYPE, RESULT_T
     t.data[0] += fx;
     t.data[1] += fy;
     t.data[2] += fz;
-#ifdef USE_NEWTONS_THIRD_LOW // todo:
-    atomicAdd_(&(nei_atom.f[0]), -fx);
-    atomicAdd_(&(nei_atom.f[1]), -fy);
-    atomicAdd_(&(nei_atom.f[2]), -fz);
-#endif
+    if (global_config::use_newtons_third_law()) {
+      hip_md_interaction_add(&(target_data[nei_index].data[0]), -fx);
+      hip_md_interaction_add(&(target_data[nei_index].data[1]), -fy);
+      hip_md_interaction_add(&(target_data[nei_index].data[2]), -fz);
+    }
   }
 };
 

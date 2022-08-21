@@ -9,12 +9,12 @@
 #include "hip_pot_macros.h" // from hip_pot lib
 
 #include "force_double_buffer_imp.h"
-#include "kernels/hip_kernels.h"
 #include "kernels/aos-thread-atom/kernel_itl.hpp"
+#include "kernels/hip_kernels.h"
 #include "kernels/soa-block-atom/soa_block_atom.hpp"
-#include "kernels/soa_eam_pair.hpp"
 #include "kernels/soa-thread-atom/soa_thread_atom.h"
 #include "kernels/soa-wf-atom/soa_wf_atom.h"
+#include "kernels/soa_eam_pair.hpp"
 #include "kernels/types/vec3.hpp"
 #include "md_hip_building_config.h"
 #include "md_hip_config.h"
@@ -25,10 +25,8 @@ ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &st
                                            type_f_dest_desc dest_atoms_desc, type_f_buffer_desc _ptr_device_buf1,
                                            type_f_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
                                            const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius)
-    : DoubleBufferBaseImp(stream1, stream2, data_desc,
-                          2 * h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, 0,
-                          h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x, src_atoms_desc,
-                          dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
+    : DoubleBufferBaseImp(stream1, stream2, data_desc, db_buffer_data_copy_option::build_copy_option(h_domain),
+                          src_atoms_desc, dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
       h_domain(h_domain), d_nei_offset(d_nei_offset), cutoff_radius(cutoff_radius),
       atoms_per_layer(h_domain.box_size_x * h_domain.box_size_y) {
 

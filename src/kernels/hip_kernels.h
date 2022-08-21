@@ -24,14 +24,18 @@ __global__ void calc_rho(_cuAtomElement *d_atoms, tp_device_rho *_d_rhos, _hipDe
                          const _type_atom_index_kernel start_id, const _type_atom_index_kernel end_id,
                          double cutoff_radius);
 
-__global__ void calDf(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_data_block_id end_id);
+__global__ void cal_df_aos(_cuAtomElement *d_atoms, _ty_data_block_id start_id, _ty_data_block_id end_id);
+
+/**
+ * calculate df for the SoA (struct of array) atom list memory layout.
+ * @tparam P type of atom types
+ * @tparam T type of atom df, rho.
+ * @tparam I type of index.
+ */
+template <typename P, typename T, typename I>
+__global__ void cal_df_soa(const T *__restrict rho, T *__restrict df, const P *__restrict types, const I atoms_num,
+                           const _hipDeviceDomain domain);
 
 __global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius);
-
-template <typename T> __device__ __forceinline__ T atomicAdd_(T *a, T b) {
-  //  return atomicAdd(a, b);
-  *a += b;
-  return *a;
-}
 
 #endif // HIP_KERNELS_H
