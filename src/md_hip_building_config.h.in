@@ -19,6 +19,6 @@ constexpr int __WAVE_SIZE__ = __WF_SIZE__;
 #cmakedefine MD_OPTIMIZE_OPTION @MD_OPTIMIZE_OPTION@
 #cmakedefine MD_OPTIMIZE_OPTION_DEFAULT
 
-#define USE_NEWTONS_THIRD_LAW
+#cmakedefine USE_NEWTONS_THIRD_LAW
 
 #endif // MD_HIP_BUILDING_CONFIG_H
