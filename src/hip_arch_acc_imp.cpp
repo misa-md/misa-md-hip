@@ -141,9 +141,42 @@ void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_of
 
   // sort neighbor offset array to reduce branch divergence and better memory coalesced in GPU kernel
   if ((OPT_LEVEL & OPT_SORT_NEIGHBOR) != 0) {
-    auto comp_nei = [](_type_nei_offset_kernel a, _type_nei_offset_kernel b) { return (std::abs(a) < std::abs(b)); };
+    auto comp_nei = [](_type_nei_offset_kernel a, _type_nei_offset_kernel b) { return a < b; };
     std::sort(nei_odd.begin(), nei_odd.end(), comp_nei);
     std::sort(nei_even.begin(), nei_even.end(), comp_nei);
+
+    // calculate intersection of 2 offset list.
+    int i = 0, j = 0;
+    std::vector<_type_nei_offset_kernel> intersection;
+    std::vector<_type_nei_offset_kernel> odd_tmp; // offset out of intersection set
+    std::vector<_type_nei_offset_kernel> even_tmp;
+    while (i < nei_odd_size || j < nei_even_size) {
+      if (nei_odd[i] < nei_even[j]) {
+        odd_tmp.push_back(nei_odd[i]);
+        i++;
+      } else if (nei_odd[i] > nei_even[j]) {
+        even_tmp.push_back(nei_even[j]);
+        j++;
+      } else { // equal
+        intersection.push_back(nei_odd[i]);
+        i++;
+        j++;
+      }
+    }
+    // copy intersection set back.
+    // move the elements in intersection set forward.
+    int k = 0;
+    for (; k < intersection.size(); k++) {
+      nei_odd[k] = intersection[k];
+      nei_even[k] = intersection[k];
+    }
+    // put elements out of intersection set to end of offset list.
+    for (int i = 0; i < odd_tmp.size(); i++) {
+      nei_odd[k + i] = odd_tmp[i];
+    }
+    for (int j = 0; j < odd_tmp.size(); j++) {
+      nei_even[k + j] = even_tmp[j];
+    }
   }
 
   HIP_CHECK(
