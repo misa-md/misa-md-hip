@@ -9,5 +9,6 @@
  * batches number read from cli.
  */
 extern unsigned int batches_cli;
+extern unsigned int gpu_num_per_node;
 
 #endif // MISA_MD_HIP_CLI_H

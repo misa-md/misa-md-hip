@@ -2,6 +2,8 @@
 #include <hip/hip_runtime.h>
 #include <iostream>
 
+#include <utils/mpi_utils.h>
+
 #include "arch/arch_imp.h"
 #include "hip_pot_macros.h" // from hip_pot lib
 #include "hip_pot.h"
@@ -23,12 +25,22 @@ _hipDeviceDomain h_domain;
 _hipDeviceNeiOffsets d_nei_offset;
 
 void hip_env_init() {
+  int world_rank;
+  MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+  MPI_Comm node_comm;
+  // split communicator into subcommunicators by shared memory
+  MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, world_rank, MPI_INFO_NULL, &node_comm);
+  int rank_in_node;
+  MPI_Comm_rank(node_comm, &rank_in_node);
+
+  int device_id = rank_in_node % gpu_num_per_node;
   int deviceCount = 0;
   HIP_CHECK(hipGetDeviceCount(&deviceCount));
-  HIP_CHECK(hipSetDevice(0));
+  HIP_CHECK(hipSetDevice(device_id));
+
   // 设备信息，可以打印一些资源值
   hipDeviceProp_t devProp;
-  HIP_CHECK(hipGetDeviceProperties(&devProp, 0));
+  HIP_CHECK(hipGetDeviceProperties(&devProp, device_id));
   std::cout << " System minor " << devProp.minor << std::endl;
   std::cout << " System major " << devProp.major << std::endl;
   std::cout << " agent prop name " << devProp.name << std::endl;
