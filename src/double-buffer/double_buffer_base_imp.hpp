@@ -9,6 +9,7 @@
 
 #include "double_buffer.h"
 #include "md_hip_config.h"
+#include "cli.h"
 
 typedef struct {
   /**

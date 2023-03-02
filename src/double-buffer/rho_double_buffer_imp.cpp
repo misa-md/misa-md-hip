@@ -142,18 +142,104 @@ void RhoDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_rho_d
 #endif
 }
 
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
 void RhoDoubleBufferImp::copyDevBufToHost_AoS(hipStream_t &stream, type_rho_dest_aos_desc dest_ptr,
                                               type_rho_buffer_aos_desc src_ptr, const std::size_t src_offset,
                                               const std::size_t des_offset, std::size_t size) {
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
-                           hipMemcpyDeviceToHost, stream));
+  if (one_process_multi_gpus_flag && global_config::use_newtons_third_law()) {
+    int device_id;
+    hipGetDevice(&device_id);
+
+    int size_d2d = h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+
+    _cuAtomElement *cal_buffer;
+    HIP_CHECK(hipMalloc((void **)&cal_buffer, sizeof(_cuAtomElement) * size_d2d));
+    constexpr int threads_per_block = 256;
+    int grid_dim = size_d2d / threads_per_block + (size_d2d % threads_per_block == 0 ? 0 : 1);
+
+    if (device_id == 0) {
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[1].atoms, sizeof(_cuAtomElement) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      
+      vector_add_aos_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                          reinterpret_cast<_cuAtomElement *>(device_atoms::d_atoms_buffer1[0].atoms + size - 2 * size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, device_atoms::d_atoms_buffer1[0].atoms, sizeof(_cuAtomElement) * (size - size_d2d),
+                hipMemcpyDeviceToHost, stream));
+    } else if (device_id == gpu_num_per_node - 1) {
+      _type_lattice_size max_size_z_per_gpu = (h_domain.box_size_z - 1) / gpu_num_per_node + 1;
+      int max_size = (max_size_z_per_gpu + 2 * h_domain.ghost_size_z) * h_domain.ext_size_y * h_domain.ext_size_x;
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[device_id - 1].atoms + max_size - size_d2d, sizeof(_cuAtomElement) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_aos_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                           reinterpret_cast<_cuAtomElement *>(device_atoms::d_atoms_buffer1[device_id].atoms + size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset + size_d2d, device_atoms::d_atoms_buffer1[device_id].atoms + size_d2d, sizeof(_cuAtomElement) * (size - size_d2d),
+                hipMemcpyDeviceToHost, stream));
+    } else {
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[device_id + 1].atoms, sizeof(_cuAtomElement) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_aos_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                           reinterpret_cast<_cuAtomElement *>(device_atoms::d_atoms_buffer1[device_id].atoms + size - 2 * size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[device_id - 1].atoms + size - size_d2d, sizeof(_cuAtomElement) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_aos_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                            reinterpret_cast<_cuAtomElement *>(device_atoms::d_atoms_buffer1[device_id].atoms + size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset + size_d2d, device_atoms::d_atoms_buffer1[device_id].atoms + size_d2d, sizeof(_cuAtomElement) * (size - 2 * size_d2d),
+                hipMemcpyDeviceToHost, stream));
+    }
+  } else {
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+              hipMemcpyDeviceToHost, stream));
+  }
 }
+#endif
+
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
 void RhoDoubleBufferImp::copyDevBufToHost_SoA(hipStream_t &stream, type_rho_dest_soa_desc dest_ptr,
                                               type_rho_buffer_soa_desc src_ptr, const std::size_t src_offset,
                                               const std::size_t des_offset, std::size_t size) {
-  // copy rho back
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset, src_ptr.rho + src_offset, sizeof(_type_atom_rho) * size,
-                           hipMemcpyDeviceToHost, stream));
+  if (one_process_multi_gpus_flag && global_config::use_newtons_third_law()) {
+    int device_id;
+    hipGetDevice(&device_id);
+    int size_d2d = h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+    
+    _type_atom_rho *cal_buffer;
+    HIP_CHECK(hipMalloc((void **)&cal_buffer, sizeof(_type_atom_rho) * size_d2d));
+    constexpr int threads_per_block = 256;
+    int grid_dim = size_d2d / threads_per_block + (size_d2d % threads_per_block == 0 ? 0 : 1);
+
+    if (device_id == 0) {
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[1].rho, sizeof(_type_atom_rho) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_soa_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                          reinterpret_cast<double *>(device_atoms::d_atoms_buffer1[0].rho + size - 2 * size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset, device_atoms::d_atoms_buffer1[0].rho, sizeof(_type_atom_rho) * (size - size_d2d),
+                hipMemcpyDeviceToHost, stream));
+    } else if (device_id == gpu_num_per_node - 1) {
+      _type_lattice_size max_size_z_per_gpu = (h_domain.box_size_z - 1) / gpu_num_per_node + 1;
+      int max_size = (max_size_z_per_gpu + 2 * h_domain.ghost_size_z) * h_domain.ext_size_y * h_domain.ext_size_x;
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[device_id - 1].rho + max_size - size_d2d, sizeof(_type_atom_rho) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_soa_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                           reinterpret_cast<double *>(device_atoms::d_atoms_buffer1[device_id].rho + size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset + size_d2d, device_atoms::d_atoms_buffer1[device_id].rho + size_d2d, sizeof(_type_atom_rho) * (size - size_d2d),
+                hipMemcpyDeviceToHost, stream));
+    } else {
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[device_id + 1].rho, sizeof(_type_atom_rho) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_soa_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                           reinterpret_cast<double *>(device_atoms::d_atoms_buffer1[device_id].rho + size - 2 * size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(cal_buffer, device_atoms::d_atoms_buffer1[device_id - 1].rho + size - size_d2d, sizeof(_type_atom_rho) * size_d2d,
+                hipMemcpyDeviceToDevice, stream));
+      vector_add_soa_rho<<<grid_dim, threads_per_block, 0, stream>>>(
+                            reinterpret_cast<double *>(device_atoms::d_atoms_buffer1[device_id].rho + size_d2d), cal_buffer, size_d2d);
+      HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset + size_d2d, device_atoms::d_atoms_buffer1[device_id].rho + size_d2d, sizeof(_type_atom_rho) * (size - 2 * size_d2d),
+                hipMemcpyDeviceToHost, stream));
+    }
+  } else {
+    // copy rho back
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.rho + des_offset, src_ptr.rho + src_offset, sizeof(_type_atom_rho) * size,
+                            hipMemcpyDeviceToHost, stream));
+  }
   if (!global_config::use_newtons_third_law()) {
     // if newton's third law is not enabled, we need also to copy df.
     // because the full df is calculated in rho calculation.
@@ -161,3 +247,4 @@ void RhoDoubleBufferImp::copyDevBufToHost_SoA(hipStream_t &stream, type_rho_dest
                              hipMemcpyDeviceToHost, stream));
   }
 }
+#endif

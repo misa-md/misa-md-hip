@@ -38,4 +38,17 @@ __global__ void cal_df_soa(const T *__restrict rho, T *__restrict df, const P *_
 
 __global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, double cutoff_radius);
 
+
+
+__global__ void vector_add_aos_df(_cuAtomElement *a, const _cuAtomElement *b, const int size);
+__global__ void vector_add_aos_rho(_cuAtomElement *a, const _cuAtomElement *b, const int size);
+__global__ void vector_add_aos_force(_cuAtomElement *a, const _cuAtomElement *b, const int size);
+
+
+
+__global__ void vector_add_soa_df(double *a, const double *b, const int size);
+
+__global__ void vector_add_soa_rho(double *a, const double *b, const int size);
+
+__global__ void vector_add_soa_force(double (*a)[HIP_DIMENSION], const double (*b)[HIP_DIMENSION], const int size);
 #endif // HIP_KERNELS_H
