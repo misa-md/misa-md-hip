@@ -23,10 +23,10 @@ NEIGHBOR_PAIR_IMP(rho, const double dist2, const double cutoff_radius, const int
   if (dist2 >= cutoff_radius * cutoff_radius) {
     return;
   }
-  double rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2);
+  double rhoTmp = hip_pot::hipChargeDensity(cur_type, nei_type, dist2);
   t0 += rhoTmp;
   if (global_config::use_newtons_third_law()) {
-    rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
+    rhoTmp = hip_pot::hipChargeDensity(nei_type, cur_type, dist2);
     hip_md_interaction_add(&nei_atom.rho, rhoTmp);
   }
 }
