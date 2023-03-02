@@ -67,3 +67,52 @@ __global__ void calForce(_cuAtomElement *d_atoms, _hipDeviceNeiOffsets offsets, 
 template __global__ void cal_df_soa<_type_atom_type_enum, _type_atom_rho, _type_atom_count>(
     const _type_atom_rho *__restrict rho, _type_atom_rho *__restrict df, const _type_atom_type_enum *__restrict types,
     const _type_atom_count atoms_num, const _hipDeviceDomain domain);
+
+
+
+__global__ void vector_add_aos_df(_cuAtomElement *a, const _cuAtomElement *b, const int size) {
+    const unsigned int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    if (tid < size) {
+        a[tid].df += b[tid].df;
+    }
+}
+__global__ void vector_add_aos_rho(_cuAtomElement *a, const _cuAtomElement *b, const int size) {
+    const unsigned int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    if (tid < size) {
+        a[tid].rho += b[tid].rho;
+    }
+}
+__global__ void vector_add_aos_force(_cuAtomElement *a, const _cuAtomElement *b, const int size) {
+    const unsigned int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    if (tid < size) {
+        a[tid].f[0] += b[tid].f[0];
+        a[tid].f[1] += b[tid].f[1];
+        a[tid].f[2] += b[tid].f[2];
+    }
+}
+
+
+__global__ void vector_add_soa_df(double *a, const double *b, const int size) {
+    const unsigned int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    if (tid < size) {
+        a[tid] += b[tid];
+    }
+}
+
+
+__global__ void vector_add_soa_rho(double *a, const double *b, const int size) {
+    const unsigned int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    if (tid < size) {
+        a[tid] += b[tid];
+    }
+}
+
+
+__global__ void vector_add_soa_force(double (*a)[HIP_DIMENSION], const double (*b)[HIP_DIMENSION], const int size) {
+    const unsigned int tid = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
+    if (tid < size) {
+        a[tid][0] += b[tid][0];
+        a[tid][1] += b[tid][1];
+        a[tid][2] += b[tid][2];
+    }
+}

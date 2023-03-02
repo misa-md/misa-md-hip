@@ -96,7 +96,7 @@ __global__ void md_nei_itl_block_atom_soa(const POS_TYPE (*__restrict x)[HIP_DIM
 
   // reduction to thread 0 in current block.
   V *temp_mem = (V *)(shared_data);
-  t.block_wf_reduce<THREADS_IN_BLOCK, WAVES_IN_BLOCK>(tid_in_wf, tid_in_block, wave_id_in_block, temp_mem);
+  t.template block_wf_reduce<THREADS_IN_BLOCK, WAVES_IN_BLOCK>(tid_in_wf, tid_in_block, wave_id_in_block, temp_mem);
   // store data back.
   if (tid_in_block == 0) {
     t.add_to(target, lat.index);

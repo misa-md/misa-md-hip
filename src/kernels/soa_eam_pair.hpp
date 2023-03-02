@@ -30,11 +30,11 @@ struct POT_SUM<TpModeRho, ATOM_TYPE, LOAD_TYPE, STORE_TYPE, POS_TYPE, INDEX_TYPE
                                              const INDEX_TYPE nei_index, const ATOM_TYPE cur_type,
                                              const ATOM_TYPE nei_type, const POS_TYPE dist2, const POS_TYPE delta_x,
                                              const POS_TYPE delta_y, const POS_TYPE delta_z) {
-    LOAD_TYPE rhoTmp = hip_pot::hipChargeDensity(nei_type, dist2); // todo LOAD_TYPE is not accuracy.
+    LOAD_TYPE rhoTmp = hip_pot::hipChargeDensity(cur_type, nei_type, dist2); // todo LOAD_TYPE is not accuracy.
     t.data += rhoTmp;
     if (global_config::use_newtons_third_law()) {
       if (nei_type != cur_type) {
-        rhoTmp = hip_pot::hipChargeDensity(cur_type, dist2);
+        rhoTmp = hip_pot::hipChargeDensity(nei_type, cur_type, dist2);
       }
       hip_md_interaction_add(&(target_data[nei_index].data), rhoTmp);
     }

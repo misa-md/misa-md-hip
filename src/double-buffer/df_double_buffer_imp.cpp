@@ -105,13 +105,25 @@ void DfDoubleBufferImp::copyFromDeviceBufToHost(hipStream_t &stream, type_df_des
 void DfDoubleBufferImp::copyDevBufToHost_AoS(hipStream_t &stream, type_df_dest_aos_desc dest_ptr,
                                              type_df_buffer_aos_desc src_ptr, const std::size_t src_offset,
                                              const std::size_t des_offset, std::size_t size) {
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
-                           hipMemcpyDeviceToHost, stream));
+  if (one_process_multi_gpus_flag && global_config::use_newtons_third_law()) {
+    std::size_t size_d2d = h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset + size_d2d, src_ptr.atoms + src_offset + size_d2d, sizeof(_cuAtomElement) * (size - 2 * size_d2d),
+              hipMemcpyDeviceToHost, stream));
+  } else {
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.atoms + des_offset, src_ptr.atoms + src_offset, sizeof(_cuAtomElement) * size,
+              hipMemcpyDeviceToHost, stream));
+  }
 }
 
 void DfDoubleBufferImp::copyDevBufToHost_SoA(hipStream_t &stream, type_df_dest_soa_desc dest_ptr,
                                              type_df_buffer_soa_desc src_ptr, const std::size_t src_offset,
                                              const std::size_t des_offset, std::size_t size) {
-  HIP_CHECK(hipMemcpyAsync(dest_ptr.df + des_offset, src_ptr.df + src_offset, sizeof(_type_atom_df) * size,
+  if (one_process_multi_gpus_flag && global_config::use_newtons_third_law()) {
+    std::size_t size_d2d = h_domain.ghost_size_z * h_domain.ext_size_y * h_domain.ext_size_x;
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.df + des_offset + size_d2d, src_ptr.df + src_offset + size_d2d, sizeof(_type_atom_df) * (size - 2 * size_d2d),
+              hipMemcpyDeviceToHost, stream));
+  } else {
+    HIP_CHECK(hipMemcpyAsync(dest_ptr.df + des_offset, src_ptr.df + src_offset, sizeof(_type_atom_df) * size,
                            hipMemcpyDeviceToHost, stream));
+  }
 }

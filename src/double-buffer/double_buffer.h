@@ -14,7 +14,7 @@ public:
 
   /**
    * Initialize double buffer with data length and suggested blocks number.
-   * @Note: It the data_len can not be divided by blocks, the real blocks will plus 1.
+   * @Note: If the data_len can not be divided by blocks, the real blocks will plus 1.
    * @param stream1,stream2 hip stream for 2 double buffer.
    * @param blocks suggested blocks number.
    * @param data_len data length.
@@ -30,7 +30,7 @@ public:
    * Send data to buffer
    * @param stream hip stream used for current data block.
    * @param left true for "left buffer or buffer 1 will be used".
-   * @param data_start_index starting data index of current block that fetch from the buffer.
+   * @param data_start_index starting data index of current block that send to the buffer.
    * @param data_end_index ending data index for current block that send to the buffer.
    *  (not include this ending index)
    * @param block_id block id. It can be less than 0, which is invalid.
@@ -85,7 +85,7 @@ protected:
    * get data index range for current data block specified by @param block_i
    * @param block_i block id.
    * @param index_start returned value of start index for current block
-   * @param index_end returned value of end index for current block (not include @param index_env).
+   * @param index_end returned value of end index for current block (not include @param index_end).
    */
   void getCurrentDataRange(const tp_data_block_id block_i, tp_block_item_idx &index_start,
                            tp_block_item_idx &index_end);

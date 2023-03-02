@@ -10,7 +10,7 @@
 
 #include "md_hip_building_config.h"
 #include "types/pre_define.h" // MD_DEV_MODE macro this header
-
+extern bool one_process_multi_gpus_flag;
 namespace global_config {
   __device__ __host__ constexpr inline bool use_newtons_third_law() {
 #ifdef USE_NEWTONS_THIRD_LAW

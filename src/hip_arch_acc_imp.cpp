@@ -19,41 +19,84 @@
 #include "memory/device_atoms.h"
 #include "optimization_level.h"
 
-
+bool one_process_multi_gpus_flag;
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;
 
-void hip_env_init() {
+int size_of_node;
+
+inline void enableP2P (int ngpus) {
+    for (int i = 0; i < ngpus; i++) {
+        hipSetDevice(i);
+        for (int j = 0; j < ngpus; j++) {
+            if (i == j) continue;
+            int peer_access_available = -1;
+            hipDeviceCanAccessPeer(&peer_access_available, i, j);
+            if (peer_access_available) {
+                hipDeviceEnablePeerAccess(j, 0);
+            }
+        }
+    }
+}
+void hip_env_init_per_gpu() {
   int world_rank;
   MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
   MPI_Comm node_comm;
   // split communicator into subcommunicators by shared memory
   MPI_Comm_split_type(MPI_COMM_WORLD, MPI_COMM_TYPE_SHARED, world_rank, MPI_INFO_NULL, &node_comm);
   int rank_in_node;
+  
   MPI_Comm_rank(node_comm, &rank_in_node);
-
-  int device_id = rank_in_node % gpu_num_per_node;
+  MPI_Comm_size(node_comm, &size_of_node);
+  printf("size_of_node = %d\n", size_of_node);
+  printf("gpu_num_per_node = %d\n", gpu_num_per_node);
   int deviceCount = 0;
   HIP_CHECK(hipGetDeviceCount(&deviceCount));
-  HIP_CHECK(hipSetDevice(device_id));
-
-  // 设备信息，可以打印一些资源值
-  hipDeviceProp_t devProp;
-  HIP_CHECK(hipGetDeviceProperties(&devProp, device_id));
-  std::cout << " System minor " << devProp.minor << std::endl;
-  std::cout << " System major " << devProp.major << std::endl;
-  std::cout << " agent prop name " << devProp.name << std::endl;
-  std::cout << "hip Device prop succeeded " << std::endl;
-  std::cout << "batches number: " << batches_cli << std::endl;
+  if (gpu_num_per_node > deviceCount) {
+    // error
+    std::cerr << "gpu_num_per_node that specified must less equal than the real gpu num in a node."
+              << std::endl;
+  }
+  // one_process_multi_gpus
+  if (size_of_node == 1 && gpu_num_per_node != 1) {
+    if (batches_cli != 1) {
+      std::cerr << "Currently, batch number which is larger than 1 is not supported if one_process_multi_gpus is enabled." 
+                << std::endl;
+    }
+    one_process_multi_gpus_flag = true;
+    enableP2P(gpu_num_per_node);
+  } else {
+    int device_id = rank_in_node % gpu_num_per_node;
+    HIP_CHECK(hipSetDevice(device_id));
+    
+    
+    // 设备信息，可以打印一些资源值
+    hipDeviceProp_t devProp;
+    
+    HIP_CHECK(hipGetDeviceProperties(&devProp, device_id));
+    std::cout << " System minor " << devProp.minor << std::endl;
+    std::cout << " System major " << devProp.major << std::endl;
+    std::cout << " agent prop name " << devProp.name << std::endl;
+    std::cout << "hip Device prop succeeded " << std::endl;
+    std::cout << "batches number: " << batches_cli << std::endl;
+  }
+  
 }
-
+void hip_env_init() {
+  for (int i = 0; i < gpu_num_per_node; i++) {
+    hipSetDevice(i);
+    hip_env_init_per_gpu();
+  }
+}
 void hip_env_clean() {
   // fixme hip_pot::destroyDevicePotTables(d_pot);
   // fixme HIP_CHECK(hipFree(d_atoms));
 }
 
-void hip_domain_init(const comm::BccDomain *p_domain) {
+
+void hip_domain_init_per_gpu(const comm::BccDomain *p_domain) {
+
   const int lolocalx = p_domain->dbx_sub_box_lattice_region.x_low;
   const int lolocaly = p_domain->dbx_sub_box_lattice_region.y_low;
   const int lolocalz = p_domain->dbx_sub_box_lattice_region.z_low;
@@ -106,8 +149,18 @@ void hip_domain_init(const comm::BccDomain *p_domain) {
   cout<<lolocalz - loghostz<<endl;//3
   */
 }
+void hip_domain_init(const comm::BccDomain *p_domain) {
+  if (one_process_multi_gpus_flag) {
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hip_domain_init_per_gpu(p_domain);
+    }
+  } else {
+    hip_domain_init_per_gpu(p_domain);
+  }
+}
 
-void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_offset) {
+void hip_nei_offset_init_per_gpu(const NeighbourIndex<_type_neighbour_index_ele> *nei_offset) {
   size_t nei_odd_size = 0;
   size_t nei_even_size = 0;
   std::vector<_type_nei_offset_kernel> nei_odd;
@@ -203,39 +256,118 @@ void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_of
   debug_printf("copy neighbor offset done.\n");
 }
 
-void hip_pot_init(eam *_pot) {
+void hip_nei_offset_init(const NeighbourIndex<_type_neighbour_index_ele> *nei_offset) {
+  if (one_process_multi_gpus_flag) {
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hip_nei_offset_init_per_gpu(nei_offset);
+    }
+  } else {
+    hip_nei_offset_init_per_gpu(nei_offset);
+  }
+}
+
+void hip_pot_init_per_gpu(eam *_pot) {
   auto _pot_types = std::vector<atom_type::_type_atomic_no>{0, 1, 2};
   hip_pot::_type_device_pot d_pot = hip_pot::potCopyHostToDevice(_pot, _pot_types);
   hip_pot::assignDevicePot(d_pot);
 }
-
+void hip_pot_init(eam *_pot) {
+  if (one_process_multi_gpus_flag) {
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hip_pot_init_per_gpu(_pot);
+    }
+  } else {
+    hip_pot_init_per_gpu(_pot);
+  }
+}
 // allocate memory for storage atoms information in device side if d_atoms is nullptr.
-void allocDeviceAtomsIfNull() {
-
-  // create double buffers.
-  const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
-  const _type_atom_count max_block_atom_size = // fixme: buffer size
-      ((h_domain.box_size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
-  device_atoms::try_malloc_double_buffers(atoms_per_layer, max_block_atom_size);
+void allocDeviceAtomsIfNull(int index, _type_lattice_size size_z) {
+    // create double buffers.
+    const _type_atom_count atoms_per_layer = h_domain.ext_size_y * h_domain.ext_size_x;
+    const _type_atom_count max_block_atom_size = // fixme: buffer size
+        ((size_z - 1) / batches_cli + 1 + 2 * h_domain.ghost_size_z) * atoms_per_layer;
+    device_atoms::try_malloc_double_buffers(atoms_per_layer, max_block_atom_size, index);
 }
 
 void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
-  hipStream_t stream[2];
-  for (int i = 0; i < 2; i++) {
-    hipStreamCreate(&(stream[i]));
-  }
-  allocDeviceAtomsIfNull();
-  const db_buffer_data_desc data_desc = db_buffer_data_desc{
-      .blocks = batches_cli,
-      .data_len = h_domain.box_size_z,
-      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
-  };
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
-                                       device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
-                                       device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
-  rhp_double_buffer.schedule();
-  for (int i = 0; i < 2; i++) {
-    hipStreamDestroy(stream[i]);
+
+  if (one_process_multi_gpus_flag) {
+    hipStream_t stream[gpu_num_per_node][2];
+    _type_lattice_size max_size_z_per_gpu = (h_domain.box_size_z - 1) / gpu_num_per_node + 1;
+    _type_atom_list_collection atoms[MAX_GPU_NUM_PER_NODE];
+    int offset = max_size_z_per_gpu * h_domain.ext_size_y * h_domain.ext_size_x;
+    for (int k = 0; k < gpu_num_per_node; k++) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+      atoms[k].atoms = _atoms.atoms + k * offset;
+            
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+      atoms[k].atom_ids = _atoms.atom_ids + k * offset;
+      atoms[k].atom_types = _atoms.atom_types + k * offset;
+      atoms[k].atom_x = _atoms.atom_x + k * offset;
+      atoms[k].atom_v = _atoms.atom_v + k * offset;
+      atoms[k].atom_f = _atoms.atom_f + k * offset;
+      atoms[k].atom_rho = _atoms.atom_rho + k * offset;
+      atoms[k].atom_df = _atoms.atom_df + k * offset;
+#endif
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      for (int j = 0; j < 2; j++) {
+        hipStreamCreate(&(stream[i][j]));
+      }
+      allocDeviceAtomsIfNull(i, std::min(h_domain.box_size_z, (i + 1) * max_size_z_per_gpu) - i * max_size_z_per_gpu);
+    }
+    RhoDoubleBufferImp *rhp_double_buffer_p[MAX_GPU_NUM_PER_NODE];
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      const db_buffer_data_desc data_desc = db_buffer_data_desc {
+          .blocks = batches_cli,
+          .data_len = std::min(h_domain.box_size_z, (i + 1) * max_size_z_per_gpu) - i * max_size_z_per_gpu,
+          .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+      };
+      rhp_double_buffer_p[i] = new RhoDoubleBufferImp(stream[i][0], stream[i][1], data_desc, device_atoms::fromAtomListColl(atoms[i]),
+                                           device_atoms::fromAtomListColl(atoms[i]), device_atoms::d_atoms_buffer1[i],
+                                           device_atoms::d_atoms_buffer2[i], h_domain, d_nei_offset, cutoff_radius);
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      rhp_double_buffer_p[i]->fillBufferWrapper(0);
+      rhp_double_buffer_p[i]->calcAsync(stream[i][0], 0);
+    }
+    
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hipDeviceSynchronize();
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      rhp_double_buffer_p[i]->fetchBufferWrapper(0);
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hipDeviceSynchronize();
+    }
+  } else {
+    hipStream_t stream[2];
+    for (int i = 0; i < 2; i++) {
+        hipStreamCreate(&(stream[i]));
+    }
+    allocDeviceAtomsIfNull(0, h_domain.box_size_z);
+    const db_buffer_data_desc data_desc = db_buffer_data_desc{
+        .blocks = batches_cli,
+        .data_len = h_domain.box_size_z,
+        .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+    };
+    RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                        device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1[0],
+                                        device_atoms::d_atoms_buffer2[0], h_domain, d_nei_offset, cutoff_radius);
+    rhp_double_buffer.schedule();
+    for (int i = 0; i < 2; i++) {
+        hipStreamDestroy(stream[i]);
+    }
   }
 }
 
@@ -243,42 +375,140 @@ void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_
   if (!global_config::use_newtons_third_law()) {
     return;
   }
-
-  hipStream_t stream[2];
-  for (int i = 0; i < 2; i++) {
-    hipStreamCreate(&(stream[i]));
-  }
-  allocDeviceAtomsIfNull();
-  const db_buffer_data_desc data_desc = db_buffer_data_desc{
-      .blocks = batches_cli,
-      .data_len = h_domain.box_size_z,
-      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
-  };
-  DfDoubleBufferImp df_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
-                                     device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
-                                     device_atoms::d_atoms_buffer2, h_domain);
-  df_double_buffer.schedule();
-  for (int i = 0; i < 2; i++) {
-    hipStreamDestroy(stream[i]);
+  if (one_process_multi_gpus_flag) {
+    hipStream_t stream[gpu_num_per_node][2];
+    _type_lattice_size max_size_z_per_gpu = (h_domain.box_size_z - 1) / gpu_num_per_node + 1;
+    _type_atom_list_collection atoms[MAX_GPU_NUM_PER_NODE];
+    int offset = max_size_z_per_gpu * h_domain.ext_size_y * h_domain.ext_size_x;
+    for (int k = 0; k < gpu_num_per_node; k++) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+      atoms[k].atoms = _atoms.atoms + k * offset;
+            
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+      atoms[k].atom_ids = _atoms.atom_ids + k * offset;
+      atoms[k].atom_types = _atoms.atom_types + k * offset;
+      atoms[k].atom_x = _atoms.atom_x + k * offset;
+      atoms[k].atom_v = _atoms.atom_v + k * offset;
+      atoms[k].atom_f = _atoms.atom_f + k * offset;
+      atoms[k].atom_rho = _atoms.atom_rho + k * offset;
+      atoms[k].atom_df = _atoms.atom_df + k * offset;
+#endif
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      for (int j = 0; j < 2; j++) {
+        hipStreamCreate(&(stream[i][j]));
+      }
+      allocDeviceAtomsIfNull(i, std::min(h_domain.box_size_z, (i + 1) * max_size_z_per_gpu) - i * max_size_z_per_gpu);
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      const db_buffer_data_desc data_desc = db_buffer_data_desc {
+          .blocks = batches_cli,
+          .data_len = std::min(h_domain.box_size_z, (i + 1) * max_size_z_per_gpu) - i * max_size_z_per_gpu,
+          .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+      };
+      DfDoubleBufferImp df_double_buffer(stream[i][0], stream[i][1], data_desc, device_atoms::fromAtomListColl(atoms[i]),
+                                           device_atoms::fromAtomListColl(atoms[i]), device_atoms::d_atoms_buffer1[i],
+                                           device_atoms::d_atoms_buffer2[i], h_domain);
+      df_double_buffer.schedule();
+    }
+  } else {
+    hipStream_t stream[2];
+    for (int i = 0; i < 2; i++) {
+      hipStreamCreate(&(stream[i]));
+    }
+    allocDeviceAtomsIfNull(0, h_domain.box_size_z);
+    const db_buffer_data_desc data_desc = db_buffer_data_desc{
+        .blocks = batches_cli,
+        .data_len = h_domain.box_size_z,
+        .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+    };
+    DfDoubleBufferImp df_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                      device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1[0],
+                                      device_atoms::d_atoms_buffer2[0], h_domain);
+    df_double_buffer.schedule();
+    for (int i = 0; i < 2; i++) {
+      hipStreamDestroy(stream[i]);
+    }
   }
 }
 
 void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
-  hipStream_t stream[2];
-  for (int i = 0; i < 2; i++) {
-    hipStreamCreate(&(stream[i]));
-  }
-  allocDeviceAtomsIfNull();
-  const db_buffer_data_desc data_desc = db_buffer_data_desc{
-      .blocks = batches_cli,
-      .data_len = h_domain.box_size_z,
-      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
-  };
-  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
-                                           device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
-                                           device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
-  force_double_buffer.schedule();
-  for (int i = 0; i < 2; i++) {
-    hipStreamDestroy(stream[i]);
+  if (one_process_multi_gpus_flag) {
+    hipStream_t stream[gpu_num_per_node][2];
+    _type_lattice_size max_size_z_per_gpu = (h_domain.box_size_z - 1) / gpu_num_per_node + 1;
+    _type_atom_list_collection atoms[MAX_GPU_NUM_PER_NODE];
+    int offset = max_size_z_per_gpu * h_domain.ext_size_y * h_domain.ext_size_x;
+    for (int k = 0; k < gpu_num_per_node; k++) {
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_AOS
+      atoms[k].atoms = _atoms.atoms + k * offset;
+            
+#endif
+#ifdef MD_ATOM_HASH_ARRAY_MEMORY_LAYOUT_SOA
+      atoms[k].atom_ids = _atoms.atom_ids + k * offset;
+      atoms[k].atom_types = _atoms.atom_types + k * offset;
+      atoms[k].atom_x = _atoms.atom_x + k * offset;
+      atoms[k].atom_v = _atoms.atom_v + k * offset;
+      atoms[k].atom_f = _atoms.atom_f + k * offset;
+      atoms[k].atom_rho = _atoms.atom_rho + k * offset;
+      atoms[k].atom_df = _atoms.atom_df + k * offset;
+#endif
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      for (int j = 0; j < 2; j++) {
+        hipStreamCreate(&(stream[i][j]));
+      }
+      allocDeviceAtomsIfNull(i, std::min(h_domain.box_size_z, (i + 1) * max_size_z_per_gpu) - i * max_size_z_per_gpu);
+    }
+    ForceDoubleBufferImp *force_double_buffer_p[MAX_GPU_NUM_PER_NODE];
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      const db_buffer_data_desc data_desc = db_buffer_data_desc {
+          .blocks = batches_cli,
+          .data_len = std::min(h_domain.box_size_z, (i + 1) * max_size_z_per_gpu) - i * max_size_z_per_gpu,
+          .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+      };
+      force_double_buffer_p[i] = new ForceDoubleBufferImp(stream[i][0], stream[i][1], data_desc, device_atoms::fromAtomListColl(atoms[i]),
+                                           device_atoms::fromAtomListColl(atoms[i]), device_atoms::d_atoms_buffer1[i],
+                                           device_atoms::d_atoms_buffer2[i], h_domain, d_nei_offset, cutoff_radius);
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      force_double_buffer_p[i]->fillBufferWrapper(0);
+      force_double_buffer_p[i]->calcAsync(stream[i][0], 0);
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hipDeviceSynchronize();
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      force_double_buffer_p[i]->fetchBufferWrapper(0);
+    }
+    for (int i = 0; i < gpu_num_per_node; i++) {
+      hipSetDevice(i);
+      hipDeviceSynchronize();
+    }
+  } else {
+    hipStream_t stream[2];
+    for (int i = 0; i < 2; i++) {
+      hipStreamCreate(&(stream[i]));
+    }
+    allocDeviceAtomsIfNull(0, h_domain.box_size_z);
+    const db_buffer_data_desc data_desc = db_buffer_data_desc{
+        .blocks = batches_cli,
+        .data_len = h_domain.box_size_z,
+        .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+    };
+    ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                            device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1[0],
+                                            device_atoms::d_atoms_buffer2[0], h_domain, d_nei_offset, cutoff_radius);
+    force_double_buffer.schedule();
+    for (int i = 0; i < 2; i++) {
+      hipStreamDestroy(stream[i]);
+    }
   }
 }

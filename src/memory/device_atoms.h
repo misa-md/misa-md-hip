@@ -7,7 +7,7 @@
 
 #include "arch/arch_atom_list_collection.h"
 #include "kernel_types.h"
-
+#define MAX_GPU_NUM_PER_NODE 4
 #define HIP_DIMENSION 3
 
 // atoms data stored on device side.
@@ -63,16 +63,17 @@ namespace device_atoms {
    * note: d_atoms_buffer1 is stored on host side, but d_atoms_buffer1.atoms is on device side (the same to
    * d_atoms_buffer2).
    */
-  extern _type_buffer_desc d_atoms_buffer1; // = {.atoms = nullptr};
-  extern _type_buffer_desc d_atoms_buffer2; // = {.atoms = nullptr};
+  extern _type_buffer_desc d_atoms_buffer1[]; // = {.atoms = nullptr};
+  extern _type_buffer_desc d_atoms_buffer2[]; // = {.atoms = nullptr};
 
   /**
    * If buffer array @var d_atoms_buffer1 and @var d_atoms_buffer2 is not allocated.
    * This function will allocate device memory for the two buffers.
    * @param atoms_per_layer the atom number in each x-y plane layer, including ghost atoms.
    * @param max_block_atom_size the max atom number among all blocks.
+   * @param index the gpu id.
    */
-  void try_malloc_double_buffers(const _type_atom_count atoms_per_layer, const _type_atom_count max_block_atom_size);
+  void try_malloc_double_buffers(const _type_atom_count atoms_per_layer, const _type_atom_count max_block_atom_size, int index);
 }; // namespace device_atoms
 
 #endif // MISA_MD_HIP_DEVICE_ATOMS_H
