@@ -2,7 +2,7 @@
 
 # use cmd-wrapper: https://github.com/genshen/cmd-wrapper (version: 6ac1cd1)
 WRAPPER_PATH=cmd-wrapper
-HIPCC_PATH=/opt/compiler/rocm/3.9.1/bin/hipcc # you may need to change the hipcc path.
+HIPCC_PATH=/public/software/compiler/dtk/dtk-22.10.1/hip/bin/hipcc # you may need to change the hipcc path.
 LINK_FLAGS=-fgpu-rdc
 
 export WRAPPED_CMD=$HIPCC_PATH
