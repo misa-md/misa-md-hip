@@ -49,6 +49,10 @@ public:
                      type_rho_buffer_desc _ptr_device_buf1, type_rho_buffer_desc _ptr_device_buf2,
                      _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
 
+  RhoDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
+                     type_rho_src_desc src_atoms_desc, type_rho_dest_desc dest_atoms_desc,
+                     type_rho_buffer_desc _ptr_device_buf1, type_rho_buffer_desc _ptr_device_buf2,
+                     _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius,int*bitmap_mem);
   /**
    * implementation of performing calculation for the specific data block.
    * @param stream HIP stream to be used for current data block.
@@ -63,6 +67,8 @@ private:
   const _type_atom_count atoms_per_layer; // atoms in each layer at z dimension.
   dim3 kernel_config_block_dim;
   dim3 kernel_config_grid_dim;
+
+  int* bitmap_mem=nullptr;
 
 private:
   void copyFromHostToDeviceBuf(hipStream_t &stream, type_rho_buffer_desc dest_ptr, type_rho_src_desc src_ptr,

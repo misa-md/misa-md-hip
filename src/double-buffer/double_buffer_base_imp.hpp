@@ -41,15 +41,15 @@ struct db_buffer_data_copy_option {
   static db_buffer_data_copy_option build_copy_option(const _hipDeviceDomain domain) {
     if (global_config::use_newtons_third_law()) {
       return db_buffer_data_copy_option{
-          .copy_ghost_size = static_cast<unsigned int> (2 * domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x) ,
-          .fetch_ghost_size = static_cast<unsigned int> (2 * domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
-          .fetch_offset = static_cast<unsigned int> (0),
+          .copy_ghost_size =static_cast<unsigned int>( 2 * domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
+          .fetch_ghost_size =static_cast<unsigned int>( 2 * domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
+          .fetch_offset =static_cast<unsigned int>( 0),
       };
     } else {
       return db_buffer_data_copy_option{
-          .copy_ghost_size = static_cast<unsigned int> (2 * domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
-          .fetch_ghost_size = static_cast<unsigned int> (0),
-          .fetch_offset = static_cast<unsigned int> (domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
+          .copy_ghost_size =static_cast<unsigned int>( 2 * domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
+          .fetch_ghost_size =static_cast<unsigned int>( 0),
+          .fetch_offset =static_cast<unsigned int>( domain.ghost_size_z * domain.ext_size_y * domain.ext_size_x),
       };
     }
   }
