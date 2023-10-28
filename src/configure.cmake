@@ -31,6 +31,11 @@ elseif()
         endif ()
 endif ()
 
+# set bitmap options.
+string(TOLOWER ${MD_BITMAP_OPTION} MD_BITMAP_OPTION_LOWER)
+if (MD_BITMAP_OPTION_LOWER MATCHES "on")
+        set(MD_BITMAP_OPTION_DEFAULT ON)
+endif ()
 
 configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/md_hip_building_config.h.in"

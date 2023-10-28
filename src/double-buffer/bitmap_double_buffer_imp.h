@@ -1,9 +1,9 @@
 //
-// Created by genshen on 2021/5/23.
+// Created by lihuizhao on 2023/10/17.
 //
 
-#ifndef MISA_MD_HIP_FORCE_DOUBLE_BUFFER_IMP_H
-#define MISA_MD_HIP_FORCE_DOUBLE_BUFFER_IMP_H
+#ifndef MISA_MD_HIP_BITMAP_DOUBLE_BUFFER_IMP_H
+#define MISA_MD_HIP_BITMAP_DOUBLE_BUFFER_IMP_H
 
 #include <hip/hip_runtime.h>
 
@@ -26,10 +26,10 @@ typedef device_atoms::_type_atom_list_aos type_f_src_aos_desc;
 typedef device_atoms::_type_atom_list_soa type_f_dest_soa_desc;
 typedef device_atoms::_type_atom_list_aos type_f_dest_aos_desc;
 
-class ForceDoubleBufferImp : public DoubleBufferBaseImp<type_f_buffer_desc, type_f_src_desc, type_f_dest_desc> {
+class BitmapDoubleBufferImp : public DoubleBufferBaseImp<type_f_buffer_desc, type_f_src_desc, type_f_dest_desc> {
 public:
   /**
-   * double buffer implementation for force calculation.
+   * double buffer implementation for Bitmap calculation.
    * @param stream1 Hip stream for buffer 1
    * @param stream2  Hip stream for buffer 2
    * @param data_desc source data descriptor as an input for calculation.
@@ -44,17 +44,13 @@ public:
    * @param d_nei_offset the neighbor offset array in our MD for searching neighbor atoms.
    * @param cutoff_radius the cutoff radius.
    */
-  ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
-                       type_f_src_desc src_atoms_desc, type_f_dest_desc dest_atoms_desc,
-                       type_f_buffer_desc _ptr_device_buf1, type_f_buffer_desc _ptr_device_buf2,
-                       _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius);
-  
-  ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
+  BitmapDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2, const db_buffer_data_desc data_desc,
                        type_f_src_desc src_atoms_desc, type_f_dest_desc dest_atoms_desc,
                        type_f_buffer_desc _ptr_device_buf1, type_f_buffer_desc _ptr_device_buf2,
                        _hipDeviceDomain h_domain, const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius,int* bitmap_mem);
 
   void calcAsync(hipStream_t &stream, const DoubleBuffer::tp_data_block_id block_id) override;
+  void schedule();
 
 private:
   const _hipDeviceDomain h_domain;
@@ -63,18 +59,17 @@ private:
   const _type_atom_count atoms_per_layer; // atoms in each layer at z dimension.
   dim3 kernel_config_block_dim;
   dim3 kernel_config_grid_dim;
-  
-  int * bitmap_mem=nullptr;
+  int* bitmap_mem;
 
 private:
   void copyFromHostToDeviceBuf(hipStream_t &stream, type_f_buffer_desc dest_ptr, type_f_src_desc src_ptr,
                                const std::size_t src_offset, std::size_t size) override;
   void copyFromDeviceBufToHost(hipStream_t &stream, type_f_dest_desc dest_ptr, type_f_buffer_desc src_ptr,
-                               const std::size_t src_offset, const std::size_t des_offset, std::size_t size) override;
+                               const std::size_t src_offset, const std::size_t des_offset, std::size_t size){}
 
 private:
   /**
-   * Launch the kernel to calculate force if the memory layout is Array of Struct mode.
+   * Launch the kernel to calculate Bitmap if the memory layout is Array of Struct mode.
    * @param stream Hip Stream
    * @param d_p double buffer descriptor
    * @param atom_num_calc the number of atoms to be calculated in current data block.
@@ -86,7 +81,7 @@ private:
                                 const DoubleBuffer::tp_block_item_idx data_end_index);
 
   /**
-   * Launch the kernel to calculate force if the memory layout is Struct of Array mode.
+   * Launch the kernel to calculate Bitmap if the memory layout is Struct of Array mode.
    * @param stream Hip Stream
    * @param d_p double buffer descriptor
    * @param atom_num_calc the number of atoms to be calculated in current data block.
@@ -113,4 +108,4 @@ private:
                             const std::size_t src_offset, const std::size_t des_offset, std::size_t size);
 };
 
-#endif // MISA_MD_HIP_FORCE_DOUBLE_BUFFER_IMP_H
+#endif // MISA_MD_HIP_BITMAP_DOUBLE_BUFFER_IMP_H

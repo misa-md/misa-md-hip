@@ -20,6 +20,8 @@
 #include "md_hip_config.h"
 #include "optimization_level.h"
 
+#include "kernels/bitmap/bitmap_soa_thread_atom.h"
+
 ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2,
                                            const db_buffer_data_desc data_desc, type_f_src_desc src_atoms_desc,
                                            type_f_dest_desc dest_atoms_desc, type_f_buffer_desc _ptr_device_buf1,
@@ -28,6 +30,19 @@ ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &st
     : DoubleBufferBaseImp(stream1, stream2, data_desc, db_buffer_data_copy_option::build_copy_option(h_domain),
                           src_atoms_desc, dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
       h_domain(h_domain), d_nei_offset(d_nei_offset), cutoff_radius(cutoff_radius),
+      atoms_per_layer(h_domain.box_size_x * h_domain.box_size_y) {
+
+  // note: size_x in h_domain is double
+}
+
+ForceDoubleBufferImp::ForceDoubleBufferImp(hipStream_t &stream1, hipStream_t &stream2,
+                                           const db_buffer_data_desc data_desc, type_f_src_desc src_atoms_desc,
+                                           type_f_dest_desc dest_atoms_desc, type_f_buffer_desc _ptr_device_buf1,
+                                           type_f_buffer_desc _ptr_device_buf2, _hipDeviceDomain h_domain,
+                                           const _hipDeviceNeiOffsets d_nei_offset, const double cutoff_radius,int* bitmap_mem)
+    : DoubleBufferBaseImp(stream1, stream2, data_desc, db_buffer_data_copy_option::build_copy_option(h_domain),
+                          src_atoms_desc, dest_atoms_desc, _ptr_device_buf1, _ptr_device_buf2),
+      h_domain(h_domain), d_nei_offset(d_nei_offset), cutoff_radius(cutoff_radius),bitmap_mem(bitmap_mem),
       atoms_per_layer(h_domain.box_size_x * h_domain.box_size_y) {
 
   // note: size_x in h_domain is double
@@ -67,6 +82,16 @@ void ForceDoubleBufferImp::launchKernelMemLayoutSoA(hipStream_t &stream, type_f_
                                                     const _type_atom_count atom_num_calc,
                                                     const DoubleBuffer::tp_block_item_idx data_start_index,
                                                     const DoubleBuffer::tp_block_item_idx data_end_index) {
+  if (BITMAP_OPTION == BITMAP_OPTION_ON){
+    //printf("\nBITMAP_OPTION在工作\n");
+    constexpr int threads_per_block = 256;
+    int grid_dim = atom_num_calc / threads_per_block + (atom_num_calc % threads_per_block == 0 ? 0 : 1);
+    (md_nei_bitmap_itl_soa<TpModeForce, _type_atom_type_kernel, _type_atom_index_kernel, double, _type_d_vec3, double,
+                    _type_d_vec3>)<<<grid_dim, threads_per_block, 0, stream>>>(
+        d_p.x, reinterpret_cast<_type_atom_type_kernel *>(d_p.types), d_p.df, reinterpret_cast<_type_d_vec3 *>(d_p.f),
+        atom_num_calc, d_nei_offset, h_domain, cutoff_radius,bitmap_mem);
+    return ;
+  }
   if (KERNEL_STRATEGY == KERNEL_STRATEGY_THREAD_ATOM) {
     constexpr int threads_per_block = 256;
     int grid_dim = atom_num_calc / threads_per_block + (atom_num_calc % threads_per_block == 0 ? 0 : 1);

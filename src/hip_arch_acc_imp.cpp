@@ -19,10 +19,17 @@
 #include "memory/device_atoms.h"
 #include "optimization_level.h"
 
+#include "double-buffer/bitmap_double_buffer_imp.h"
+
 
 _hipDeviceDomain h_domain;
 // double *d_constValue_double;
 _hipDeviceNeiOffsets d_nei_offset;
+//bitmap
+
+int * bitmap_mem=nullptr;
+void hip_bitmap_build(_type_atom_list_collection _atoms,double cutoff_radius);
+
 
 void hip_env_init() {
   int world_rank;
@@ -220,6 +227,10 @@ void allocDeviceAtomsIfNull() {
 }
 
 void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
+  if(BITMAP_OPTION == BITMAP_OPTION_ON){
+    //printf("\nBITMAP_OPTION 在工作\n");
+    hip_bitmap_build(_atoms,cutoff_radius);
+  }
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));
@@ -230,10 +241,21 @@ void hip_eam_rho_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff
       .data_len = h_domain.box_size_z,
       .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
   };
-  RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+  if(BITMAP_OPTION == BITMAP_OPTION_ON){
+    RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                       device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                       device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius,bitmap_mem);
+    rhp_double_buffer.schedule();
+  }else{
+    RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
                                        device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
                                        device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
-  rhp_double_buffer.schedule();
+    rhp_double_buffer.schedule();
+  }
+  //RhoDoubleBufferImp rhp_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+  //                                     device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+  //                                     device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
+  //rhp_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
   }
@@ -264,6 +286,8 @@ void hip_eam_df_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_
 }
 
 void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cutoff_radius) {
+  //printf("%d\n",d_nei_offset.nei_odd_size);
+  
   hipStream_t stream[2];
   for (int i = 0; i < 2; i++) {
     hipStreamCreate(&(stream[i]));
@@ -274,11 +298,86 @@ void hip_eam_force_calc(eam *pot, _type_atom_list_collection _atoms, double cuto
       .data_len = h_domain.box_size_z,
       .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
   };
-  ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+  if(BITMAP_OPTION == BITMAP_OPTION_ON){
+    ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                           device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                           device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius,bitmap_mem);
+    force_double_buffer.schedule();
+  }else{
+    ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
                                            device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
                                            device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
-  force_double_buffer.schedule();
+    force_double_buffer.schedule();
+  }
+  //ForceDoubleBufferImp force_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+  //                                         device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+  //                                         device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius);
+  //force_double_buffer.schedule();
   for (int i = 0; i < 2; i++) {
     hipStreamDestroy(stream[i]);
   }
+  //hipFree(bitmap_mem);
+}
+
+void get_bitmap_data(const int atom_num){
+  const int data_size = atom_num*8;
+  int* host_array = new int[data_size];
+  hipMemcpy(host_array, bitmap_mem, data_size*sizeof(int), hipMemcpyDeviceToHost);
+  printf("\n");
+  for(int i=0;i<atom_num;i++){
+    for(int j=0;j<8;j++){
+      printf("%d ",host_array[i*8+j]);
+    }
+    printf("\n");
+  }
+
+}
+void print_offset(const _hipDeviceNeiOffsets d_nei_offset){
+  //d_nei_offset.nei_odd_size = nei_odd_size;
+  //d_nei_offset.nei_even_size = nei_even_size;
+  //d_nei_offset.nei_odd = d_nei_odd;
+  //d_nei_offset.nei_even = d_nei_even;
+  printf("\nnei_odd: ");
+  for(int i=0;i<d_nei_offset.nei_odd_size;i++){
+    printf("%ld ",d_nei_offset.nei_odd[i]);
+  }
+  printf("\nnei_even:");
+  for(int i=0;i<d_nei_offset.nei_even_size;i++){
+    printf("%ld ",d_nei_offset.nei_even[i]);
+  }
+  printf("\n");
+}
+void hip_bitmap_build(_type_atom_list_collection _atoms,double cutoff_radius){
+  //print_offset(d_nei_offset);
+  //内存分配
+  const int mem_size=32*h_domain.box_size_x*h_domain.box_size_y*h_domain.box_size_z;
+  if(bitmap_mem==nullptr){
+    HIP_CHECK(hipMalloc((void **)&bitmap_mem, mem_size));
+  }
+  HIP_CHECK(hipMemset((void*)bitmap_mem,0,mem_size));
+
+  //printf("\n原子个数为:%d,需要内存大小为:%d字节\n",mem_size/32,mem_size);
+
+  //创建stream流
+  hipStream_t stream[2];
+  for (int i = 0; i < 2; i++) {
+    hipStreamCreate(&(stream[i]));
+  }
+  //创建双缓冲区
+  allocDeviceAtomsIfNull();
+  const db_buffer_data_desc data_desc = db_buffer_data_desc{
+      .blocks = batches_cli,
+      .data_len = h_domain.box_size_z,
+      .eles_per_block_item = h_domain.ext_size_y * h_domain.ext_size_x,
+  };
+  BitmapDoubleBufferImp bitmap_double_buffer(stream[0], stream[1], data_desc, device_atoms::fromAtomListColl(_atoms),
+                                           device_atoms::fromAtomListColl(_atoms), device_atoms::d_atoms_buffer1,
+                                           device_atoms::d_atoms_buffer2, h_domain, d_nei_offset, cutoff_radius,bitmap_mem);
+  bitmap_double_buffer.schedule();
+  //get_bitmap_data(10);
+  //删除stream流
+  for (int i = 0; i < 2; i++) {
+    hipStreamDestroy(stream[i]);
+  }
+  
 }
