@@ -76,12 +76,12 @@ __global__ void md_nei_bitmap_itl_soa(const T (*__restrict x)[HIP_DIMENSION], co
       continue;
     }
 
-    /**
+
     int temp_bitmap[8]={0};
     for(int i=0;i<8;i++){
       temp_bitmap[i]=bitmap_mem[atom_id*8+i];
     }
-    **/
+
 
     const T x_src[3] = {x[lat.index][0], x[lat.index][1], x[lat.index][2]};
     // loop each neighbor atoms, and calculate rho contribution
@@ -89,7 +89,7 @@ __global__ void md_nei_bitmap_itl_soa(const T (*__restrict x)[HIP_DIMENSION], co
     const size_t nei_len = (lat.x + d_domain.box_index_start_x) % 2 == 0 ? offsets.nei_even_size : offsets.nei_odd_size;
     V t0; // summation of rho or force
     for (size_t k = 0; k < nei_len; k++) {//FLOPS=62
-      if(((bitmap_mem[atom_id*8+k/32]&(1<<(31-k%32)))>>(31-k%32))==0){
+      if(((temp_bitmap[k/32]&(1<<(31-k%32)))>>(31-k%32))==0){
         continue;
       }
       // neighbor can be indexed with odd x or even x
