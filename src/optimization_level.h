@@ -19,6 +19,9 @@ constexpr int KERNEL_STRATEGY_BLOCK_ATOM = 1 << 2;  // one block for an atom
 
 constexpr int DEFAULT_OPT_LEVEL = OPT_DB_BUF | OPT_PIN_MEM | OPT_SORT_NEIGHBOR;
 
+// bitmap strategy
+constexpr int BITMAP_OPTION_ON = 1 ;
+
 // set kernel strategy
 #if defined(MD_KERNEL_STRATEGY_WF_ATOM) || defined(MD_KERNEL_STRATEGY_DEFAULT)
 constexpr int KERNEL_STRATEGY = KERNEL_STRATEGY_WF_ATOM;
@@ -35,6 +38,13 @@ constexpr int KERNEL_STRATEGY = KERNEL_STRATEGY_BLOCK_ATOM;
 constexpr int OPT_LEVEL = DEFAULT_OPT_LEVEL;
 #else
 constexpr int OPT_LEVEL = MD_OPTIMIZE_OPTION;
+#endif
+
+// set bitmap level
+#if defined(MD_BITMAP_OPTION_DEFAULT)
+constexpr int BITMAP_OPTION = BITMAP_OPTION_ON;
+#else
+constexpr int BITMAP_OPTION = 0;
 #endif
 
 #endif // OPTIMIZATION_LEVEL_H
